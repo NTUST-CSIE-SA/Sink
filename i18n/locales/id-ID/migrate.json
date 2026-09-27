@@ -1,23 +1,5 @@
 {
   "migrate": {
-    "d1": {
-      "title": "Migrasi KV ke D1",
-      "description": "Salin data tautan dari Workers KV ke D1 tanpa mengganti data D1 yang ada.",
-      "status_title": "Status migrasi",
-      "status_pending": "Migrasi belum selesai.",
-      "status_completed": "Migrasi selesai.",
-      "completed_at": "Selesai {date}",
-      "run_again": "Jalankan lagi",
-      "running": "Memigrasikan…",
-      "success": "Migrasi berhasil diselesaikan.",
-      "failed": "Migrasi gagal",
-      "scanned": "Dipindai",
-      "inserted": "Ditambahkan",
-      "skipped": "Dilewati",
-      "expired": "Kedaluwarsa",
-      "failed_count": "Gagal",
-      "no_marker": "Penanda penyelesaian tidak ditemukan."
-    },
     "access_export": {
       "title": "Ekspor Data Akses",
       "description": "Unduh statistik akses sebagai file CSV",
@@ -41,6 +23,8 @@
       "title": "Ekspor Tautan",
       "description": "Unduh semua tautan Anda sebagai file JSON",
       "button": "Ekspor Semua",
+      "button_active": "Ekspor Aktif",
+      "button_expired": "Ekspor Kedaluwarsa",
       "total_links": "Total tautan",
       "success": "Ekspor berhasil",
       "failed": "Ekspor gagal"
@@ -48,6 +32,7 @@
     "import": {
       "title": "Impor Tautan",
       "description": "Unggah file JSON untuk mengimpor tautan",
+      "preview_mode_tip": "Mode pratinjau tidak mendukung impor tautan.",
       "dropzone": "Jatuhkan file JSON di sini atau klik untuk mengunggah",
       "links_found": "{count} tautan siap diimpor",
       "button": "Mulai Impor",

@@ -6,7 +6,7 @@ import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, 
 import { drizzle } from 'drizzle-orm/d1'
 import { createError } from 'h3'
 import { parseURL, stringifyParsedURL } from 'ufo'
-import { links, linkTags, linkTombstones, tags } from '../../database/schema'
+import { links, linkTags, tags } from '../../database/schema'
 import { getExpiration } from '../../utils/time'
 
 const D1_CURSOR_PREFIX = 'd1:v1:'
@@ -28,6 +28,7 @@ export interface ListLinksOptions {
   tag?: string
   status?: LinkStatus
   folder?: LinkFolderFilter
+  backfillExpiration?: boolean
 }
 
 export interface ListLinksResult {
@@ -111,6 +112,7 @@ function rowToLink(row: LinkRow): Link {
     'google',
     'cloaking',
     'redirectWithQuery',
+    'proxy',
     'password',
     'unsafe',
     'geo',
@@ -145,7 +147,7 @@ async function rowsToLinks(event: H3Event, rows: LinkRow[]): Promise<Link[]> {
   return await addTagsToLinksFromDatabase(getDatabase(event), result, result.map(link => link.slug))
 }
 
-export function buildD1LinkValues(event: H3Event, link: Link, effectiveExpiresAt?: number | null) {
+export function buildD1LinkValues(event: H3Event, link: Link) {
   return {
     slug: link.slug,
     id: link.id,
@@ -161,22 +163,19 @@ export function buildD1LinkValues(event: H3Event, link: Link, effectiveExpiresAt
     google: link.google ?? null,
     cloaking: link.cloaking ?? null,
     redirectWithQuery: link.redirectWithQuery ?? null,
+    proxy: link.proxy ?? null,
     password: link.password ?? null,
     unsafe: link.unsafe ?? null,
     geo: link.geo ?? null,
     folderId: link.folderId ?? null,
     normalizedUrl: withoutQuery(link.url),
-    effectiveExpiresAt: effectiveExpiresAt === undefined ? getExpiration(event, link.expiration) ?? null : effectiveExpiresAt,
+    effectiveExpiresAt: getExpiration(event, link.expiration) ?? null,
   }
 }
 
-export async function d1GetActiveLink(event: H3Event, slug: string): Promise<{ link: Link, effectiveExpiresAt: number | null } | null> {
+export async function d1GetActiveLink(event: H3Event, slug: string): Promise<Link | null> {
   const rows = await getDatabase(event).select().from(links).where(and(eq(links.slug, slug), activeCondition())).limit(1)
-  const row = rows[0]
-  if (!row)
-    return null
-  const [link] = await rowsToLinks(event, [row])
-  return link ? { link, effectiveExpiresAt: row.effectiveExpiresAt } : null
+  return rows[0] ? (await rowsToLinks(event, rows))[0] ?? null : null
 }
 
 export async function d1GetAnyLink(event: H3Event, slug: string): Promise<Link | null> {
@@ -196,35 +195,13 @@ export async function d1GetLinkWithMetadata(event: H3Event, slug: string): Promi
   }
 }
 
-export async function d1HasActiveLinkVersion(event: H3Event, link: Link): Promise<boolean> {
-  const rows = await getDatabase(event).select({ id: links.id }).from(links).where(and(
-    eq(links.slug, link.slug),
-    eq(links.id, link.id),
-    eq(links.updatedAt, link.updatedAt),
-    activeCondition(),
-  )).limit(1)
-  return rows.length > 0
-}
-
-export async function d1GetActiveLinkVersions(event: H3Event, expectedLinks: Link[]): Promise<Set<string>> {
-  if (!expectedLinks.length)
-    return new Set()
-
-  const rows = await getDatabase(event).select({ slug: links.slug }).from(links).where(and(
-    activeCondition(),
-    or(...expectedLinks.map(link => and(eq(links.slug, link.slug), eq(links.id, link.id), eq(links.updatedAt, link.updatedAt)))),
-  ))
-  return new Set(rows.map(row => row.slug))
-}
-
-export async function d1CreateLink(event: H3Event, link: Link): Promise<{ created: boolean, effectiveExpiresAt: number | null }> {
+export async function d1CreateLink(event: H3Event, link: Link): Promise<boolean> {
   const db = getDatabase(event)
-  const { statements, effectiveExpiresAt } = buildCreateLinkStatements(event, db, link)
-  const [created] = await db.batch(statements)
-  return { created: (created as { slug: string }[]).length > 0, effectiveExpiresAt }
+  const [created] = await db.batch(buildCreateLinkStatements(event, db, link))
+  return (created as { slug: string }[]).length > 0
 }
 
-function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getDatabase>, link: Link): { statements: [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]], effectiveExpiresAt: number | null } {
+function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getDatabase>, link: Link): [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]] {
   const now = Math.floor(Date.now() / 1000)
   const values = buildD1LinkValues(event, link)
   const effectiveExpiresAt = values.effectiveExpiresAt
@@ -235,10 +212,6 @@ function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getData
     set: pendingValues,
     setWhere: and(isNotNull(links.effectiveExpiresAt), lte(links.effectiveExpiresAt, now)),
   }).returning({ slug: links.slug })
-  const clearTombstone = db.delete(linkTombstones).where(and(
-    eq(linkTombstones.slug, link.slug),
-    exists(db.select({ slug: links.slug }).from(links).where(pendingLink)),
-  ))
   const tagInserts = link.tags.map(tag => db.insert(tags).select(
     db.select({ name: sql<string>`${tag}`.as('name') }).from(links).where(pendingLink),
   ).onConflictDoNothing())
@@ -252,13 +225,10 @@ function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getData
       .where(pendingLink),
   ).onConflictDoNothing())
   const finalize = db.update(links).set({ effectiveExpiresAt }).where(pendingLink)
-  return {
-    statements: [insert, clearTombstone, clearTags, ...tagInserts, ...associationInserts, finalize],
-    effectiveExpiresAt,
-  }
+  return [insert, clearTags, ...tagInserts, ...associationInserts, finalize]
 }
 
-export async function d1CreateLinks(event: H3Event, importedLinks: Link[]): Promise<{ created: boolean, effectiveExpiresAt: number | null }[]> {
+export async function d1CreateLinks(event: H3Event, importedLinks: Link[]): Promise<boolean[]> {
   if (!importedLinks.length)
     return []
 
@@ -268,17 +238,14 @@ export async function d1CreateLinks(event: H3Event, importedLinks: Link[]): Prom
   let statementCount = 0
   const statements = batches.flatMap((batch) => {
     insertIndexes.push(statementCount)
-    statementCount += batch.statements.length
-    return batch.statements
+    statementCount += batch.length
+    return batch
   })
   const results = await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
-  return batches.map((batch, index) => ({
-    created: (results[insertIndexes[index]!] as { slug: string }[]).length > 0,
-    effectiveExpiresAt: batch.effectiveExpiresAt,
-  }))
+  return insertIndexes.map(index => (results[index] as { slug: string }[]).length > 0)
 }
 
-export async function d1UpdateLink(event: H3Event, link: Link, expected?: ExpectedLinkVersion): Promise<{ updated: boolean, effectiveExpiresAt: number | null }> {
+export async function d1UpdateLink(event: H3Event, link: Link, expected?: ExpectedLinkVersion): Promise<boolean> {
   const values = buildD1LinkValues(event, link)
   const db = getDatabase(event)
   const update = db.update(links).set(values).where(and(
@@ -301,19 +268,11 @@ export async function d1UpdateLink(event: H3Event, link: Link, expected?: Expect
   ).onConflictDoNothing())
   const results = await db.batch([clearTags, ...tagInserts, ...associationInserts, update])
   const updated = results.at(-1) as { slug: string }[]
-  return { updated: updated.length > 0, effectiveExpiresAt: values.effectiveExpiresAt }
+  return updated.length > 0
 }
 
 export async function d1DeleteLink(event: H3Event, slug: string): Promise<void> {
-  const db = getDatabase(event)
-  const now = Math.floor(Date.now() / 1000)
-  await db.batch([
-    db.delete(links).where(eq(links.slug, slug)),
-    db.insert(linkTombstones).values({ slug, deletedAt: now }).onConflictDoUpdate({
-      target: linkTombstones.slug,
-      set: { deletedAt: now },
-    }),
-  ])
+  await getDatabase(event).delete(links).where(eq(links.slug, slug))
 }
 
 function encodeCursor(cursor: D1Cursor): string {
@@ -369,6 +328,10 @@ export async function d1ListLinks(event: H3Event, options: ListLinksOptions): Pr
   const rows = await db.select().from(links).where(and(statusCondition(status), tagCondition, folderCondition(options.folder), cursorCondition)).orderBy(...order).limit(options.limit + 1)
   const hasMore = rows.length > options.limit
   const page = hasMore ? rows.slice(0, options.limit) : rows
+  if (options.backfillExpiration) {
+    for (const row of page)
+      row.expiration ??= row.effectiveExpiresAt
+  }
   const last = page.at(-1)
   return {
     links: await rowsToLinks(event, page),

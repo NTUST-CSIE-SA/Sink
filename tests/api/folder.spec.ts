@@ -1,5 +1,5 @@
 import type { Folder, FolderWithCount } from '../../shared/schemas/folder'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { MAX_FOLDER_DEPTH } from '../../shared/schemas/folder'
 import {
   deleteStoredFolders,
@@ -9,7 +9,6 @@ import {
   getD1Link,
   postJson,
   putJson,
-  setLinkStoreD1Mode,
 } from '../utils'
 
 interface FolderListResponse {
@@ -42,6 +41,30 @@ async function createLink(slug: string, folderId?: string | null) {
   return response
 }
 
+interface McpToolResult {
+  isError?: boolean
+  content: { text: string }[]
+}
+
+async function callMcpTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
+  const response = await fetchWithAuth('/api/mcp', {
+    method: 'POST',
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream',
+      'Mcp-Protocol-Version': '2025-11-25',
+    },
+  })
+  expect(response.status, `MCP ${name}`).toBe(200)
+  // The stateless 2025-era transport answers inside an SSE `data:` frame.
+  const body = await response.text()
+  const json = response.headers.get('content-type')?.includes('text/event-stream')
+    ? body.split('\n').find(line => line.startsWith('data:'))!.slice(5)
+    : body
+  return JSON.parse(json).result
+}
+
 async function listFolders(): Promise<FolderListResponse> {
   const response = await fetchWithAuth('/api/folder/list')
   expect(response.status).toBe(200)
@@ -54,10 +77,6 @@ async function listLinkSlugs(query: string): Promise<string[]> {
   const data = await response.json<{ links: { slug: string }[] }>()
   return data.links.map(link => link.slug)
 }
-
-beforeAll(async () => {
-  await setLinkStoreD1Mode()
-})
 
 afterAll(async () => {
   await deleteStoredLinks([...createdSlugs])
@@ -399,6 +418,33 @@ describe.sequential('/api/link folder filtering', () => {
       folderId: null,
     })
     expect(response.status).toBe(201)
+    expect((await getD1Link(slug))?.folderId).toBe(null)
+  })
+})
+
+// The MCP write tools share the REST write path, so they must honour folders the same way.
+describe.sequential('/api/mcp folder handling', () => {
+  it('rejects an unknown folder instead of failing on the foreign key', async () => {
+    const result = await callMcpTool('create_link', {
+      url: 'https://example.com/mcp-unknown-folder',
+      slug: `mcp-unknown-folder-${suffix}`,
+      folderId: 'does-not-ex',
+    })
+    expect(result.isError).toBe(true)
+    expect(result.content[0]!.text).toContain('404')
+  })
+
+  it('keeps the folder when update_link omits folderId and clears it on null', async () => {
+    const folder = await createFolder(`mcp-edit-${suffix}`)
+    const slug = `mcp-edit-${suffix}`
+    await createLink(slug, folder.id)
+
+    const kept = await callMcpTool('update_link', { url: 'https://example.com/mcp-edited', slug })
+    expect(kept.isError).toBeUndefined()
+    expect((await getD1Link(slug))?.folderId).toBe(folder.id)
+
+    const cleared = await callMcpTool('update_link', { url: 'https://example.com/mcp-edited', slug, folderId: null })
+    expect(cleared.isError).toBeUndefined()
     expect((await getD1Link(slug))?.folderId).toBe(null)
   })
 })

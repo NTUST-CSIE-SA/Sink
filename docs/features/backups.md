@@ -10,8 +10,7 @@ A Sink backup is a **JSON snapshot of your links** stored in **R2** (Cloudflare 
 ## Requirements
 
 1. Bind **R2**
-2. Finish one-time storage setup: open **Dashboard → Links** after deploy. Until then, backup fails with “storage not ready” (HTTP 423). See [storage setup](/storage/kv-to-d1)
-3. Create a snapshot from the dashboard or `POST /api/backup`
+2. Create a snapshot from the dashboard or `POST /api/backup`
 
 Automatic daily backups need Workers cron (this repo: **00:00 UTC**). Turn off with `NUXT_DISABLE_AUTO_BACKUP=true`. Pages supports **manual** snapshots only.
 
@@ -28,7 +27,7 @@ All link records in D1, including expired ones and password material. Treat ever
 Limit who can read the R2 bucket. Snapshots may include password material and full destination URLs.
 :::
 
-Not included: database schema, delete markers, migration history, analytics data.
+Not included: database schema, analytics data.
 
 ## Restore limits
 

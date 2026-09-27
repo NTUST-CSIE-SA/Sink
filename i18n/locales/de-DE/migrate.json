@@ -1,23 +1,5 @@
 {
   "migrate": {
-    "d1": {
-      "title": "KV-zu-D1-Migration",
-      "description": "Link-Datensätze von Workers KV nach D1 kopieren. Vorhandene D1-Datensätze bleiben erhalten.",
-      "status_title": "Migrationsstatus",
-      "status_pending": "Die Migration ist noch nicht abgeschlossen.",
-      "status_completed": "Migration abgeschlossen.",
-      "completed_at": "Abgeschlossen am {date}",
-      "run_again": "Erneut ausführen",
-      "running": "Migration läuft…",
-      "success": "Migration erfolgreich abgeschlossen.",
-      "failed": "Migration fehlgeschlagen",
-      "scanned": "Geprüft",
-      "inserted": "Eingefügt",
-      "skipped": "Übersprungen",
-      "expired": "Abgelaufen",
-      "failed_count": "Fehlgeschlagen",
-      "no_marker": "Keine Abschlussmarkierung gefunden."
-    },
     "access_export": {
       "title": "Zugriffsdaten exportieren",
       "description": "Zugriffsstatistiken als CSV-Datei herunterladen",
@@ -41,6 +23,8 @@
       "title": "Links exportieren",
       "description": "Laden Sie alle Links als JSON-Datei herunter",
       "button": "Alle exportieren",
+      "button_active": "Aktive exportieren",
+      "button_expired": "Abgelaufene exportieren",
       "total_links": "Gesamtlinks",
       "success": "Export erfolgreich",
       "failed": "Export fehlgeschlagen"
@@ -48,6 +32,7 @@
     "import": {
       "title": "Links importieren",
       "description": "Laden Sie eine JSON-Datei hoch, um Links zu importieren",
+      "preview_mode_tip": "Im Vorschaumodus können keine Links importiert werden.",
       "dropzone": "JSON-Datei hierher ziehen oder klicken zum Hochladen",
       "links_found": "{count} Links bereit zum Import",
       "button": "Import starten",

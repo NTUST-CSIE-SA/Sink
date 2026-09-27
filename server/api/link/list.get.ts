@@ -1,5 +1,5 @@
-import { z } from 'zod'
 import { FolderFilterSchema } from '#shared/schemas/folder'
+import { ListLinksQuerySchema } from '#shared/schemas/link'
 
 defineRouteMeta({
   openAPI: {
@@ -52,12 +52,8 @@ defineRouteMeta({
   },
 })
 
-const ListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).default(20),
-  cursor: z.string().trim().max(1024).optional(),
-  sort: z.enum(['az', 'za', 'newest', 'oldest']).default('newest'),
-  tag: z.string().trim().toLowerCase().min(1).max(32).optional(),
-  status: z.enum(['active', 'expired', 'all']).default('active'),
+// The folder filter stays REST-only: MCP has no tool to discover folder ids.
+const ListQuerySchema = ListLinksQuerySchema.extend({
   folder: FolderFilterSchema,
 })
 

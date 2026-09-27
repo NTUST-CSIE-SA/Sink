@@ -31,15 +31,10 @@ async function handleRootDrop(event: DragEvent) {
 // Loading is owned by the dashboard layout: below 768px this tree lives inside
 // a Sheet that stays unmounted until the user opens it, so a fetch started here
 // never ran on mobile and every folder surface came up empty.
-const migration = useLinkMigration()
 </script>
 
 <template>
-  <SidebarGroup
-    v-if="migration.completed.value" class="
-      group-data-[collapsible=icon]:hidden
-    "
-  >
+  <SidebarGroup class="group-data-[collapsible=icon]:hidden">
     <SidebarGroupLabel>{{ $t('links.folders.group_label') }}</SidebarGroupLabel>
     <SidebarGroupAction
       class="transition-colors"

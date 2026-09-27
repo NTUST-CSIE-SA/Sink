@@ -1,11 +1,11 @@
 {
   "name": "sink",
   "type": "module",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "packageManager": "pnpm@11.11.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "nuxt dev --port 7465",
@@ -30,7 +30,7 @@
     "gen:types": "wrangler types --env-file .env.example",
     "deploy:config": "node scripts/cloudflare-deploy-config.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply sink-xinshoutw --local",
+    "db:migrate:local": "wrangler d1 migrations apply sink --local",
     "db:migrate:remote": "pnpm deploy:config && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
     "deploy": "pnpm deploy:pages",
     "deploy:pages": "pnpm db:migrate:remote && wrangler pages deploy dist",
@@ -44,6 +44,7 @@
     "@cloudflare/vitest-pool-workers": "^0.18.4",
     "@internationalized/date": "^3.12.2",
     "@lucide/vue": "^1.24.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@number-flow/vue": "^0.5.1",
     "@nuxt/eslint": "^1.16.0",
     "@nuxtjs/color-mode": "^4.0.1",

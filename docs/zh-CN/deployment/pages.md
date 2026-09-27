@@ -24,10 +24,9 @@ description: 通过 Git 集成和仪表盘管理的绑定将 Sink 部署到 Clou
 
 创建需要的 Cloudflare 资源，然后打开 Pages 项目 → **Settings → Bindings** 添加。绑定 = 把资源用固定名称接到 Sink。
 
-| 绑定名称    | 产品             | 是否必需 | 是什么         |
+| 绑定名称    | 产品             | 是否必需 | 说明           |
 | ----------- | ---------------- | -------- | -------------- |
 | `DB`        | D1               | 必需     | 保存链接       |
-| `KV`        | KV               | 必需     | 加速跳转       |
 | `ANALYTICS` | Analytics Engine | 推荐     | 访问统计       |
 | `R2`        | R2               | 可选     | 备份与社交图片 |
 | `AI`        | Workers AI       | 可选     | AI 建议        |
@@ -40,32 +39,30 @@ description: 通过 Git 集成和仪表盘管理的绑定将 Sink 部署到 Clou
 
 ## 3. 变量和密钥
 
-在 **Settings → Variables and Secrets** 中添加以下构建部署配置。D1 迁移和生成部署配置必须使用两个 ID。
+在 **Settings → Variables and Secrets** 中添加以下构建部署配置。D1 迁移和生成部署配置必须使用 D1 数据库 ID。
 
-| 构建变量                          | 是否必需 | 填什么                                                                    |
-| --------------------------------- | -------- | ------------------------------------------------------------------------- |
-| `DEPLOY_D1_DATABASE_ID`           | 必需     | D1 数据库 ID（在 D1 详情页）                                              |
-| `DEPLOY_KV_NAMESPACE_ID`          | 必需     | KV 命名空间 ID（在 KV 详情页）                                            |
-| `DEPLOY_KV_PREVIEW_NAMESPACE_ID`  | 可选     | 预览 KV 命名空间 ID；默认等于 `DEPLOY_KV_NAMESPACE_ID`                    |
-| `DEPLOY_D1_DATABASE_NAME`         | 可选     | D1 数据库名称；默认 `sink`                                                |
-| `DEPLOY_ANALYTICS_DATASET`        | 可选     | Analytics Engine 数据集；默认 `sink`（请与 `NUXT_DATASET` 保持一致）       |
+| 构建变量                   | 是否必需 | 填什么                                                               |
+| -------------------------- | -------- | -------------------------------------------------------------------- |
+| `DEPLOY_D1_DATABASE_ID`    | 必需     | D1 数据库 ID（在 D1 详情页）                                         |
+| `DEPLOY_D1_DATABASE_NAME`  | 可选     | D1 数据库名称；默认 `sink`                                           |
+| `DEPLOY_ANALYTICS_DATASET` | 可选     | Analytics Engine 数据集；默认 `sink`，并成为 `NUXT_DATASET` 的默认值 |
 
 还需为 Production 环境配置 Pages Build / Wrangler 鉴权变量。Pages 不会自动提供以下变量：
 
-| 鉴权变量                  | 类型     | 填什么                                                                                                                                                                                    |
-| ------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`    | 加密密钥 | `postbuild` 远程 D1 迁移使用的令牌。Git 构建最低需要 **Account → D1 → Edit**；若在外部使用同一令牌执行 `pnpm deploy:pages`，还需 **Account → Cloudflare Pages → Edit**                     |
-| `CLOUDFLARE_ACCOUNT_ID`   | 变量     | Cloudflare 账户 ID。Wrangler 官方将其定义为可选，但本项目未配置 `account_id`，因此建议设置，以保证非交互构建稳定                                                                           |
+| 鉴权变量                | 类型     | 填什么                                                                                                                                                                 |
+| ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | 加密密钥 | `postbuild` 远程 D1 迁移使用的令牌。Git 构建最低需要 **Account → D1 → Edit**；若在外部使用同一令牌执行 `pnpm deploy:pages`，还需 **Account → Cloudflare Pages → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | 变量     | Cloudflare 账户 ID。Wrangler 官方将其定义为可选，但本项目未配置 `account_id`，因此建议设置，以保证非交互构建稳定                                                       |
 
 `CLOUDFLARE_ACCOUNT_ID` 可以与 `NUXT_CF_ACCOUNT_ID` 使用相同的值，但两个变量名必须分别设置。预览构建会跳过迁移，因此 Preview 环境不需要这两个鉴权变量。
 
 在仪表盘的同一位置另行添加运行时配置：
 
-| 运行时变量                 | 类型     | 填什么                                                      |
-| -------------------------- | -------- | ----------------------------------------------------------- |
-| `NUXT_SITE_TOKEN`          | 加密密钥 | 仪表盘登录密码和 API 密码（高强度、稳定，至少 8 个字符）    |
-| `NUXT_CF_ACCOUNT_ID`       | 变量     | Cloudflare 账户 ID（访问分析用）                            |
-| `NUXT_CF_API_TOKEN`        | 加密密钥 | 仅含 **Account → Account Analytics → Read** 的 Custom Token |
+| 运行时变量           | 类型     | 填什么                                                                 |
+| -------------------- | -------- | ---------------------------------------------------------------------- |
+| `NUXT_SITE_TOKEN`    | 加密密钥 | 仪表盘登录密码和 API 密码（高强度、稳定，至少 8 个字符且不含空白字符） |
+| `NUXT_CF_ACCOUNT_ID` | 变量     | Cloudflare 账户 ID（访问分析用）                                       |
+| `NUXT_CF_API_TOKEN`  | 加密密钥 | 仅含 **Account → Account Analytics → Read** 的 Custom Token            |
 
 创建访问分析令牌：Cloudflare 仪表盘 → 右上角头像 → **My Profile** → **API Tokens** → **Create Token** → **Custom Token** → 权限选 **Account → Account Analytics → Read**。
 
@@ -80,11 +77,6 @@ Pages 会把仪表盘中的这套变量同时提供给构建和运行环境，�
 如需通过 CLI 手动部署，请先完成构建。`pnpm deploy:pages` 假定 `dist` 已存在：它先根据 `DEPLOY_*` 值生成 `wrangler.deploy.jsonc` 并执行远程 D1 迁移，再通过 Wrangler 上传 `dist`；该命令不会执行应用构建。
 
 1. 打开 `/dashboard`，用 `NUXT_SITE_TOKEN` 登录
-2. 打开一次 **Dashboard → Links**（一次性存储初始化）
-3. 创建链接
-
-::: tip 必须先打开一次 Links
-存储初始化完成前，创建链接可能失败，并提示「存储未就绪」（HTTP 423）。
-:::
+2. 创建链接
 
 Pages 支持手动[备份](/zh-CN/features/backups)；本仓库里每日自动备份只为 Workers 配置。

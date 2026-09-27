@@ -1,11 +1,11 @@
 import type { BackupData } from '../../server/utils/backup'
 import type { Link } from '../../shared/schemas/link'
-import { env, exports } from 'cloudflare:workers'
+import { env } from 'cloudflare:workers'
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { links, linkTags, tags } from '../../server/database/schema'
 import { createBackupJsonStream, uploadBackupParts } from '../../server/utils/backup-json-stream'
-import { clearLinkMigrationState, db, deleteStoredLinks, postJson, setLinkStoreD1Mode } from '../utils'
+import { db, deleteStoredLinks, postJson } from '../utils'
 
 function getManualBackupDate(key: string) {
   const match = key.match(/^backups\/manual-links-(.+)\.json$/)
@@ -15,42 +15,10 @@ function getManualBackupDate(key: string) {
   return new Date(match[1].replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3'))
 }
 
-async function runScheduledBackup() {
-  const pending: Promise<unknown>[] = []
-  const context = {
-    waitUntil(promise: Promise<unknown>) {
-      pending.push(promise)
-    },
-    passThroughOnException() {},
-    props: {},
-  } as unknown as ExecutionContext
-  await exports.default.scheduled?.({
-    scheduledTime: Date.now(),
-    cron: '0 0 * * *',
-    noRetry() {},
-  }, env, context)
-  await Promise.all(pending)
-}
-
 describe('/api/backup', { concurrent: false }, () => {
   it('returns 401 without auth', async () => {
     const response = await postJson('/api/backup', {}, false)
     expect(response.status).toBe(401)
-  })
-
-  it('skips scheduled backups and locks manual backups before migration', async () => {
-    await clearLinkMigrationState()
-    const before = new Set((await env.R2.list({ prefix: 'backups/' })).objects.map(object => object.key))
-
-    try {
-      await runScheduledBackup()
-      expect((await postJson('/api/backup', {})).status).toBe(423)
-      const after = new Set((await env.R2.list({ prefix: 'backups/' })).objects.map(object => object.key))
-      expect(after).toEqual(before)
-    }
-    finally {
-      await clearLinkMigrationState()
-    }
   })
 
   it('backs up all authoritative D1 links to R2', async () => {
@@ -58,7 +26,6 @@ describe('/api/backup', { concurrent: false }, () => {
     const slugs = {
       active: `backup-active-${crypto.randomUUID()}`,
       expired: `backup-expired-${crypto.randomUUID()}`,
-      legacy: `backup-legacy-${crypto.randomUUID()}`,
     }
     const tag = `backup-tag-${crypto.randomUUID()}`
     const pagePrefix = `backup-page-${crypto.randomUUID()}-`
@@ -67,7 +34,6 @@ describe('/api/backup', { concurrent: false }, () => {
     let backupKey: string | undefined
 
     try {
-      await setLinkStoreD1Mode()
       await db.batch([
         db.insert(links).values({ slug: slugs.active, id: crypto.randomUUID(), url: 'https://example.com/active', createdAt: now, updatedAt: now, normalizedUrl: 'https://example.com/active', effectiveExpiresAt: null }),
         db.insert(links).values({ slug: slugs.expired, id: crypto.randomUUID(), url: 'https://example.com/expired', createdAt: now, updatedAt: now, normalizedUrl: 'https://example.com/expired', effectiveExpiresAt: now - 60 }),
@@ -85,19 +51,6 @@ describe('/api/backup', { concurrent: false }, () => {
           effectiveExpiresAt: null,
         })))
       }
-      const legacyLink = (slug: string, url: string, tags: string[] = []): Link => ({
-        id: crypto.randomUUID().slice(0, 10),
-        slug,
-        url,
-        createdAt: now,
-        updatedAt: now,
-        tags,
-      })
-      await Promise.all([
-        env.KV.put(`link:${slugs.active}`, JSON.stringify(legacyLink(slugs.active, 'https://stale.example.com'))),
-        env.KV.put(`link:${slugs.legacy}`, JSON.stringify(legacyLink(slugs.legacy, 'https://example.com/legacy'))),
-      ])
-
       const backupResponse = await postJson('/api/backup', {})
       expect(backupResponse.status).toBe(200)
       expect(await backupResponse.json()).toEqual({ success: true, message: 'Backup completed successfully' })
@@ -121,14 +74,12 @@ describe('/api/backup', { concurrent: false }, () => {
         expect.objectContaining({ slug: slugs.expired, expiration: now - 60 }),
       ] satisfies Partial<Link>[]))
       expect(backupData?.links.filter(link => link.slug.startsWith(pagePrefix)).map(link => link.slug)).toEqual(pageSlugs)
-      expect(backupData?.links.some(link => link.slug === slugs.legacy)).toBe(false)
     }
     finally {
       if (backupKey)
         await env.R2.delete(backupKey)
       await deleteStoredLinks([...Object.values(slugs), ...pageSlugs])
       await db.delete(tags).where(eq(tags.name, tag))
-      await clearLinkMigrationState()
     }
   })
 

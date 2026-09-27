@@ -13,23 +13,21 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'shadcn-nuxt',
   ],
-  devtools: { enabled: true },
   css: ['@/assets/css/tailwind.css'],
-  colorMode: {
-    classSuffix: '',
-  },
   runtimeConfig: {
     siteToken: process.env.NUXT_SITE_TOKEN || randomBytes(32).toString('base64url'),
     cfAccessTeamDomain: '',
     cfAccessAud: '',
     redirectStatusCode: '301',
-    linkCacheTtl: 60,
     redirectWithQuery: false,
     redirectNoStore: false,
+    // Deprecated NUXT_HOME_URL alias; kept so pre-public deployments keep redirecting `/`.
     homeURL: '',
     cfAccountId: '',
     cfApiToken: '',
-    dataset: 'sink',
+    // Defaults to the build-time DEPLOY_ANALYTICS_DATASET so the dataset the
+    // dashboard reads cannot drift from the one the ANALYTICS binding writes.
+    dataset: process.env.DEPLOY_ANALYTICS_DATASET || 'sink',
     aiModel: '@cf/qwen/qwen3-30b-a3b-fp8',
     aiPrompt: `You are a URL shortening assistant, please shorten the URL provided by the user into a SLUG. The SLUG information should be derived from the URL and page content (if provided). Do not make any assumptions beyond the given information. A SLUG is human-readable and should not exceed three words and can be validated using regular expressions {slugRegex} . Only the best one is returned, the format must be JSON reference {"slug": "example-slug"}`,
     aiOgPrompt: `You are an OpenGraph metadata assistant. Please summarize the page content provided by the user into a perfect title and description for an OpenGraph preview. Do not make any assumptions beyond the given information. Only the best one is returned, the format must be JSON reference {"title": "Example Title", "description": "Example description that summarizes the page accurately."}`,
@@ -46,6 +44,9 @@ export default defineNuxtConfig({
       previewMode: '',
       slugDefaultLength: '6',
       kvBatchLimit: '50',
+      maxUrlLength: '16384',
+      homeURL: process.env.NUXT_HOME_URL || '',
+      linkProxyEnabled: false,
     },
   },
   routeRules: {
@@ -106,9 +107,6 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
-    worker: {
-      format: 'es',
-    },
     optimizeDeps: {
       include: [
         '@internationalized/date',
@@ -158,14 +156,6 @@ export default defineNuxtConfig({
     defaultLocale: 'en-US',
   },
   shadcn: {
-    /**
-     * Prefix for all the imported component
-     */
     prefix: '',
-    /**
-     * Directory that the component lives in.
-     * @default "./components/ui"
-     */
-    componentDir: './app/components/ui',
   },
 })

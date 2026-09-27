@@ -7,12 +7,10 @@ import {
   d1FolderExists,
   d1ImportFolders,
   d1ListFolderIds,
-  d1ListFolderLinkSlugs,
   d1ListFolders,
   d1MoveLinks,
   d1UpdateFolder,
 } from '../services/link-store/folders'
-import { deleteLinkCache } from '../services/link-store/kv'
 
 export interface FolderListResult {
   folders: FolderWithCount[]
@@ -54,41 +52,10 @@ export async function updateFolder(event: H3Event, input: EditFolderInput): Prom
   return await d1UpdateFolder(event, input)
 }
 
-/**
- * Deleting a folder rewrites folder_id on every link inside it, so their cached
- * KV copies are evicted the same way a move does. Eviction is deferred: the
- * folder is already gone, and one KV op per link would otherwise sit on the
- * response path and can exceed the per-invocation subrequest cap.
- */
 export async function deleteFolder(event: H3Event, id: string): Promise<boolean> {
-  const slugs = await d1ListFolderLinkSlugs(event, id)
-  if (!await d1DeleteFolder(event, id))
-    return false
-
-  scheduleLinkCacheEviction(event, slugs)
-  return true
+  return await d1DeleteFolder(event, id)
 }
 
-function scheduleLinkCacheEviction(event: H3Event, slugs: string[]): void {
-  if (!slugs.length)
-    return
-
-  const eviction = Promise.all(slugs.map(slug => deleteLinkCache(event, slug))).then(() => {})
-  const { context } = event.context.cloudflare
-  if (context?.waitUntil)
-    context.waitUntil(eviction)
-  else
-    void eviction
-}
-
-/**
- * Moves links between folders. The KV cache stores the whole link payload, so
- * every moved slug is evicted and repopulated on its next read. Eviction runs
- * after the response: it is one subrequest per link, and the free plan caps a
- * single invocation at 50, so blocking on it turned a committed move into a 500.
- */
 export async function moveLinks(event: H3Event, slugs: string[], folderId: string | null): Promise<string[]> {
-  const moved = await d1MoveLinks(event, slugs, folderId)
-  scheduleLinkCacheEviction(event, moved)
-  return moved
+  return await d1MoveLinks(event, slugs, folderId)
 }

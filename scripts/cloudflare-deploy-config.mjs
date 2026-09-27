@@ -19,10 +19,9 @@ const optionalName = z.preprocess(
 )
 
 const deployEnvSchema = z.object({
+  // Optional so an unset value keeps the name already in wrangler.jsonc
+  DEPLOY_WORKER_NAME: optionalName,
   DEPLOY_D1_DATABASE_ID: z.string().trim().min(1),
-  DEPLOY_KV_NAMESPACE_ID: z.string().trim().min(1),
-  // Optional Wrangler preview binding; falls back to DEPLOY_KV_NAMESPACE_ID
-  DEPLOY_KV_PREVIEW_NAMESPACE_ID: optionalName,
   DEPLOY_D1_DATABASE_NAME: defaultName,
   DEPLOY_R2_BUCKET_NAME: optionalName,
   // Optional Wrangler preview bucket; falls back to DEPLOY_R2_BUCKET_NAME when R2 is enabled
@@ -68,14 +67,17 @@ if (parseErrors.length > 0) {
 }
 
 const env = await loadEnv()
+
+if (env.DEPLOY_WORKER_NAME)
+  config.name = env.DEPLOY_WORKER_NAME
+else
+  console.warn(`[deploy-config] DEPLOY_WORKER_NAME is not set, deploying as "${config.name}"`)
+
 const d1 = getBinding(config, 'd1_databases', 'DB')
-const kv = getBinding(config, 'kv_namespaces', 'KV')
 const analytics = getBinding(config, 'analytics_engine_datasets', 'ANALYTICS')
 
 d1.database_id = env.DEPLOY_D1_DATABASE_ID
 d1.database_name = env.DEPLOY_D1_DATABASE_NAME
-kv.id = env.DEPLOY_KV_NAMESPACE_ID
-kv.preview_id = env.DEPLOY_KV_PREVIEW_NAMESPACE_ID ?? env.DEPLOY_KV_NAMESPACE_ID
 analytics.dataset = env.DEPLOY_ANALYTICS_DATASET
 
 if (env.DEPLOY_R2_BUCKET_NAME) {
