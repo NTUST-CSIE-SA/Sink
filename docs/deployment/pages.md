@@ -27,7 +27,6 @@ Create the Cloudflare resources you need, then open the Pages project → **Sett
 | Binding name | Product          | Required?   | Description               |
 | ------------ | ---------------- | ----------- | ------------------------- |
 | `DB`         | D1               | Yes         | Stores links              |
-| `KV`         | KV               | Yes         | Speeds up redirects       |
 | `ANALYTICS`  | Analytics Engine | Recommended | Visit stats               |
 | `R2`         | R2               | Optional    | Backups and social images |
 | `AI`         | Workers AI       | Optional    | AI suggestions            |
@@ -40,15 +39,13 @@ Under **Settings → Functions → Compatibility Flags**, add `nodejs_compat` fo
 
 ## 3. Variables and secrets
 
-Under **Settings → Variables and Secrets**, add the build deployment configuration below. The two IDs are required for D1 migration and deployment configuration generation.
+Under **Settings → Variables and Secrets**, add the build deployment configuration below. The D1 database ID is required for D1 migration and deployment configuration generation.
 
-| Build variable                   | Required? | What to put                                                                          |
-| -------------------------------- | --------- | ------------------------------------------------------------------------------------ |
-| `DEPLOY_D1_DATABASE_ID`          | Yes       | D1 database ID (from the D1 detail page)                                             |
-| `DEPLOY_KV_NAMESPACE_ID`         | Yes       | KV namespace ID (from the KV detail page)                                            |
-| `DEPLOY_KV_PREVIEW_NAMESPACE_ID` | No        | Preview KV namespace ID; defaults to `DEPLOY_KV_NAMESPACE_ID`                        |
-| `DEPLOY_D1_DATABASE_NAME`        | No        | D1 database name; defaults to `sink`                                                 |
-| `DEPLOY_ANALYTICS_DATASET`       | No        | Analytics Engine dataset; defaults to `sink`, and becomes the default `NUXT_DATASET` |
+| Build variable             | Required? | What to put                                                                          |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `DEPLOY_D1_DATABASE_ID`    | Yes       | D1 database ID (from the D1 detail page)                                             |
+| `DEPLOY_D1_DATABASE_NAME`  | No        | D1 database name; defaults to `sink`                                                 |
+| `DEPLOY_ANALYTICS_DATASET` | No        | Analytics Engine dataset; defaults to `sink`, and becomes the default `NUXT_DATASET` |
 
 Also configure Pages Build / Wrangler authentication for the Production environment. Pages does not provide these variables automatically:
 
@@ -80,11 +77,6 @@ Start a deployment from `master` and wait until it finishes.
 For a manual CLI deployment, build first. `pnpm deploy:pages` assumes `dist` already exists: it generates `wrangler.deploy.jsonc` from the `DEPLOY_*` values, applies remote D1 migrations, and then uploads `dist` with Wrangler. It does not run the application build.
 
 1. Open `/dashboard` and sign in with `NUXT_SITE_TOKEN`
-2. Open **Dashboard → Links** once (one-time storage setup)
-3. Create a link
-
-::: tip First open of Links
-Until storage setup finishes, creating links may fail with “storage not ready” (HTTP 423).
-:::
+2. Create a link
 
 Manual [backups](/features/backups) work on Pages; automatic daily backups are configured for Workers only in this repo.

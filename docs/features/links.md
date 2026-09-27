@@ -25,7 +25,7 @@ Instance-wide demo switch. New links last five minutes and cannot be edited or d
 
 Password-protected links show a form in the browser. API clients can send the password in the `x-link-password` header.
 
-Passwords set in the dashboard/API are stored as PBKDF2 hashes. Exception: very old links migrated from KV may keep legacy password values until you edit them.
+Passwords set in the dashboard/API are stored as PBKDF2 hashes.
 
 The `unsafe` flag controls the warning page:
 

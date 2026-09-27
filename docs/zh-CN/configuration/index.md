@@ -9,7 +9,7 @@ description: Sink 支持的全部环境变量——做什么、填在哪、什�
 
 **大多数人需要的**
 
-- 必配：`NUXT_SITE_TOKEN`、D1（`DB`）、KV（`KV`）以及它们的 ID
+- 必配：`NUXT_SITE_TOKEN` 以及 D1（`DB`）和它的 ID
 - 访问分析：`ANALYTICS` 绑定 + `NUXT_CF_ACCOUNT_ID` + `NUXT_CF_API_TOKEN` — 见[访问分析](/zh-CN/features/analytics)
 - 其余都是可选
 
@@ -36,7 +36,6 @@ description: Sink 支持的全部环境变量——做什么、填在哪、什�
 | 绑定        | 是否必需 | 说明                                                                                               |
 | ----------- | -------- | -------------------------------------------------------------------------------------------------- |
 | `DB`        | 必需     | D1 数据库 — 保存链接                                                                               |
-| `KV`        | 必需     | 加速跳转的缓存（+ 存储就绪标记）                                                                   |
 | `ANALYTICS` | 推荐     | 访问事件，供分析使用                                                                               |
 | `R2`        | 可选     | 文件存储，用于备份和社交图片。Workers 可用 `DEPLOY_R2_BUCKET_NAME`；Pages 在仪表盘 Bindings 里添加 |
 | `AI`        | 可选     | Workers AI 建议                                                                                    |
@@ -52,11 +51,10 @@ description: Sink 支持的全部环境变量——做什么、填在哪、什�
 如果留空，Sink 可能在构建时随机生成密码，下次部署可能变化。
 :::
 
-| 变量                     | 时机           | 放哪里                       | 用途                           |
-| ------------------------ | -------------- | ---------------------------- | ------------------------------ |
-| `NUXT_SITE_TOKEN`        | 运行时（密钥） | Workers 或 Pages 的加密密钥  | 登录 + API 密码                |
-| `DEPLOY_D1_DATABASE_ID`  | 构建时         | Workers Builds 或 Pages 变量 | D1 数据库 ID（在 D1 详情页）   |
-| `DEPLOY_KV_NAMESPACE_ID` | 构建时         | Workers Builds 或 Pages 变量 | KV 命名空间 ID（在 KV 详情页） |
+| 变量                    | 时机           | 放哪里                       | 用途                         |
+| ----------------------- | -------------- | ---------------------------- | ---------------------------- |
+| `NUXT_SITE_TOKEN`       | 运行时（密钥） | Workers 或 Pages 的加密密钥  | 登录 + API 密码              |
+| `DEPLOY_D1_DATABASE_ID` | 构建时         | Workers Builds 或 Pages 变量 | D1 数据库 ID（在 D1 详情页） |
 
 ## 推荐配置（访问分析）
 
@@ -90,13 +88,12 @@ Workers 要在 Builds 和运行时填相同值。Pages 只填一次，然后重�
 
 ### 构建时选项
 
-| 变量                             | 放哪里                  | 何时生效                                                                        |
-| -------------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
-| `NUXT_API_CORS`                  | Builds 或 Pages         | 严格等于 `true` 时，允许其他网站的浏览器调用 `/api/**`（CORS）。仍需要登录      |
-| `DEPLOY_WORKER_NAME`             | 仅 Workers Builds       | 部署时使用的 Worker 名称；不填则沿用 `wrangler.jsonc` 里的 `name`               |
-| `DEPLOY_R2_BUCKET_NAME`          | 仅 Workers Builds       | 填已有 R2 桶名以挂上 R2（`bucket_name`）。Pages：在 Bindings 里添加             |
-| `DEPLOY_KV_PREVIEW_NAMESPACE_ID` | Workers Builds 或 Pages | 可选 Wrangler `preview_id`；默认等于 `DEPLOY_KV_NAMESPACE_ID`                   |
-| `DEPLOY_R2_PREVIEW_BUCKET_NAME`  | 仅 Workers Builds       | 可选 Wrangler `preview_bucket_name`；启用 R2 时默认等于 `DEPLOY_R2_BUCKET_NAME` |
+| 变量                            | 放哪里            | 何时生效                                                                        |
+| ------------------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `NUXT_API_CORS`                 | Builds 或 Pages   | 严格等于 `true` 时，允许其他网站的浏览器调用 `/api/**`（CORS）。仍需要登录      |
+| `DEPLOY_WORKER_NAME`            | 仅 Workers Builds | 部署时使用的 Worker 名称；不填则沿用 `wrangler.jsonc` 里的 `name`               |
+| `DEPLOY_R2_BUCKET_NAME`         | 仅 Workers Builds | 填已有 R2 桶名以挂上 R2（`bucket_name`）。Pages：在 Bindings 里添加             |
+| `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 仅 Workers Builds | 可选 Wrangler `preview_bucket_name`；启用 R2 时默认等于 `DEPLOY_R2_BUCKET_NAME` |
 
 ### 运行时选项
 
@@ -115,7 +112,6 @@ Workers 要在 Builds 和运行时填相同值。Pages 只填一次，然后重�
 | 变量                          | 默认                         | 用途                                                                                     |
 | ----------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
 | `NUXT_REDIRECT_STATUS_CODE`   | `301`                        | 普通跳转状态码（也可用 `302`/`307`/`308`）。未知短链仍用 302                             |
-| `NUXT_LINK_CACHE_TTL`         | `60`                         | KV 缓存链接的秒数                                                                        |
 | `NUXT_REDIRECT_WITH_QUERY`    | `false`                      | `true` 时把访客查询参数接到目标 URL                                                      |
 | `NUXT_REDIRECT_NO_STORE`      | `false`                      | `true` 时要求浏览器不要缓存这次跳转                                                      |
 | `NUXT_CASE_SENSITIVE`         | `false`                      | `true` 时自定义短链码区分大小写（`Docs` ≠ `docs`）                                       |

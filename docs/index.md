@@ -21,7 +21,7 @@ hero:
 features:
   - title: Runs on Cloudflare
     icon: ☁️
-    details: Deploy to Workers or Pages. You need a database (D1) and a fast cache (KV); analytics, file storage, and AI are optional.
+    details: Deploy to Workers or Pages. You need a D1 database; analytics, file storage, and AI are optional.
   - title: Link management
     icon: 🔗
     details: Add expiration, passwords, warnings, tags, and device or country routing when you need them.

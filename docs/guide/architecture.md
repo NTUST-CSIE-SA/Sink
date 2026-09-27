@@ -16,16 +16,13 @@ Sink runs the dashboard, API, and short-link redirects on Cloudflare Workers or 
 
 ## Cloudflare services Sink uses
 
-| Binding name | Product          | Required?   | Description                                    |
-| ------------ | ---------------- | ----------- | ---------------------------------------------- |
-| `DB`         | D1               | Yes         | Authoritative database storing links           |
-| `KV`         | KV               | Yes         | Fast cache for redirects + one-time setup flag |
-| `ANALYTICS`  | Analytics Engine | Recommended | Visit events for charts and logs               |
-| `R2`         | R2               | Optional    | Object storage for backups and social images   |
-| `AI`         | Workers AI       | Optional    | Suggests short codes and titles                |
+| Binding name | Product          | Required?   | Description                                  |
+| ------------ | ---------------- | ----------- | -------------------------------------------- |
+| `DB`         | D1               | Yes         | Database storing links                       |
+| `ANALYTICS`  | Analytics Engine | Recommended | Visit events for charts and logs             |
+| `R2`         | R2               | Optional    | Object storage for backups and social images |
+| `AI`         | Workers AI       | Optional    | Suggests short codes and titles              |
 
-**D1** is where links are really stored. **KV** is a fast copy used for redirects. After you save a link, Sink updates the cache; if the cache is wrong, it is dropped and reloaded from D1.
-
-After the first deploy, open **Dashboard → Links** once so Sink can finish storage setup. Until then, most link APIs fail with “storage not ready” (HTTP 423). See [storage setup / migration](/storage/kv-to-d1).
+**D1** stores every link. Redirects read it directly, so an edit or delete takes effect on the next visit.
 
 R2 and AI are optional extras. Start with [Getting Started](./getting-started).

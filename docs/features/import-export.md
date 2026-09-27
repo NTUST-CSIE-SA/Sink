@@ -5,7 +5,7 @@ description: Move links between Sink instances with JSON pages, including expire
 
 # Import and Export
 
-Use the authenticated JSON import/export APIs to move links between compatible Sink instances. This is different from [storage migration](/storage/kv-to-d1) and [R2 backups](./backups).
+Use the authenticated JSON import/export APIs to move links between compatible Sink instances. This is different from [R2 backups](./backups).
 
 ## Export
 
@@ -24,5 +24,5 @@ Each request accepts at most half the export page size. Sink checks the whole re
 - Masked password placeholders from the dashboard UI are **not** valid passwords
 
 ::: tip Not a full restore
-Import does not rebuild the whole database. It does not recreate delete markers, migration history, or the storage-ready flag.
+Import does not rebuild the whole database. It restores links with their tags and folders, not analytics data.
 :::

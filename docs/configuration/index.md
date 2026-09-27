@@ -9,7 +9,7 @@ All values are strings. Boolean switches use `true` unless noted.
 
 **What most people need**
 
-- Always: `NUXT_SITE_TOKEN`, D1 (`DB`), KV (`KV`), and their IDs
+- Always: `NUXT_SITE_TOKEN` and D1 (`DB`) with its ID
 - For analytics: `ANALYTICS` binding + `NUXT_CF_ACCOUNT_ID` + `NUXT_CF_API_TOKEN` — see [Analytics](/features/analytics)
 - Everything else is optional
 
@@ -36,7 +36,6 @@ A **binding** connects a Cloudflare product to Sink under a fixed name.
 | Binding     | Required?   | Description                                                                                                         |
 | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | `DB`        | Yes         | D1 database — stores links                                                                                          |
-| `KV`        | Yes         | Fast cache for redirects (+ storage-ready flag)                                                                     |
 | `ANALYTICS` | Recommended | Visit events for analytics                                                                                          |
 | `R2`        | Optional    | File storage for backups and social images. Workers can set `DEPLOY_R2_BUCKET_NAME`; Pages adds R2 in the dashboard |
 | `AI`        | Optional    | Workers AI suggestions                                                                                              |
@@ -52,11 +51,10 @@ Set this yourself. It is the **dashboard login password** and the **API password
 If you leave it empty, Sink may invent a random password at build time that can change on the next deploy.
 :::
 
-| Variable                 | When             | Where                                | Purpose                                   |
-| ------------------------ | ---------------- | ------------------------------------ | ----------------------------------------- |
-| `NUXT_SITE_TOKEN`        | Runtime (secret) | Encrypted secret on Workers or Pages | Login + API password                      |
-| `DEPLOY_D1_DATABASE_ID`  | Build            | Workers Builds or Pages variables    | D1 database ID (from the D1 detail page)  |
-| `DEPLOY_KV_NAMESPACE_ID` | Build            | Workers Builds or Pages variables    | KV namespace ID (from the KV detail page) |
+| Variable                | When             | Where                                | Purpose                                  |
+| ----------------------- | ---------------- | ------------------------------------ | ---------------------------------------- |
+| `NUXT_SITE_TOKEN`       | Runtime (secret) | Encrypted secret on Workers or Pages | Login + API password                     |
+| `DEPLOY_D1_DATABASE_ID` | Build            | Workers Builds or Pages variables    | D1 database ID (from the D1 detail page) |
 
 ## Recommended (analytics)
 
@@ -90,13 +88,12 @@ Click analytics store the target URL in Workers Analytics Engine, which limits a
 
 ### Build-time options
 
-| Variable                         | Where                   | When it turns on                                                                                     |
-| -------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| `NUXT_API_CORS`                  | Builds or Pages         | Exactly `true` allows browser apps on other sites to call `/api/**` (CORS). Login is still required  |
-| `DEPLOY_WORKER_NAME`             | Workers Builds only     | Worker name to deploy as; unset keeps the `name` in `wrangler.jsonc`                                 |
-| `DEPLOY_R2_BUCKET_NAME`          | Workers Builds only     | Set to an existing R2 bucket name to attach R2 (`bucket_name`). Pages: add R2 under Bindings instead |
-| `DEPLOY_KV_PREVIEW_NAMESPACE_ID` | Workers Builds or Pages | Optional Wrangler `preview_id`; defaults to `DEPLOY_KV_NAMESPACE_ID`                                 |
-| `DEPLOY_R2_PREVIEW_BUCKET_NAME`  | Workers Builds only     | Optional Wrangler `preview_bucket_name`; defaults to `DEPLOY_R2_BUCKET_NAME` when R2 is enabled      |
+| Variable                        | Where               | When it turns on                                                                                     |
+| ------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `NUXT_API_CORS`                 | Builds or Pages     | Exactly `true` allows browser apps on other sites to call `/api/**` (CORS). Login is still required  |
+| `DEPLOY_WORKER_NAME`            | Workers Builds only | Worker name to deploy as; unset keeps the `name` in `wrangler.jsonc`                                 |
+| `DEPLOY_R2_BUCKET_NAME`         | Workers Builds only | Set to an existing R2 bucket name to attach R2 (`bucket_name`). Pages: add R2 under Bindings instead |
+| `DEPLOY_R2_PREVIEW_BUCKET_NAME` | Workers Builds only | Optional Wrangler `preview_bucket_name`; defaults to `DEPLOY_R2_BUCKET_NAME` when R2 is enabled      |
 
 ### Runtime options
 
@@ -115,7 +112,6 @@ Safe browsing example: Cloudflare Family DNS `https://family.cloudflare-dns.com/
 | Variable                      | Default                      | Purpose                                                                                                      |
 | ----------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `NUXT_REDIRECT_STATUS_CODE`   | `301`                        | Normal redirect code (`302` / `307` / `308` also work). Unknown-slug redirects stay 302                      |
-| `NUXT_LINK_CACHE_TTL`         | `60`                         | How long KV caches a link (seconds)                                                                          |
 | `NUXT_REDIRECT_WITH_QUERY`    | `false`                      | `true` appends visitor query params to the target URL                                                        |
 | `NUXT_REDIRECT_NO_STORE`      | `false`                      | `true` asks browsers not to cache the redirect                                                               |
 | `NUXT_CASE_SENSITIVE`         | `false`                      | `true` keeps custom short-code case (`Docs` ≠ `docs`)                                                        |
