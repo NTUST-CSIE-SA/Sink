@@ -16,8 +16,6 @@
 
 ## Overview
 
-<img align="right" width="420" alt="Sink links dashboard" src="docs/images/sink.cool_dashboard_links.png" />
-
 Deploys straight to Cloudflare Workers, with no server of your own
 
 This repository is a modified fork of [miantiao-me/Sink](https://github.com/miantiao-me/Sink): it adds folders, drops Workers KV, and reworks the deploy configuration. See the commit history for every change
