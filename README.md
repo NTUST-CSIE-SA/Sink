@@ -2,6 +2,9 @@
 
 **A Simple, Speedy, Secure, and Serverless Link Shortener with Analytics, Running Entirely on Cloudflare.**
 
+> [!NOTE]
+> This is a modified fork of [miantiao-me/Sink](https://github.com/miantiao-me/Sink). See the commit history for the changes made here.
+
 [Website](https://sink.cool) · [Documentation](https://docs.sink.cool) · [API Reference](https://sink.cool/_docs/scalar)
 
 <a href="https://trendshift.io/repositories/20331" target="_blank">
@@ -178,7 +181,10 @@ It exposes tools for managing links (list, search, read, count, tag, create, upd
 
 ## 📄 License
 
-[AGPL-3.0-only](LICENSE) © [miantiao-me](https://github.com/miantiao-me)
+[AGPL-3.0-only](LICENSE)
+
+- Original work © [miantiao-me](https://github.com/miantiao-me)
+- Modifications © 2026 [xinshoutw](https://github.com/xinshoutw)
 
 ## ☕ Sponsor
 
