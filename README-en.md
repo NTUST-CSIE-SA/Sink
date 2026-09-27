@@ -41,7 +41,7 @@ This repository is a modified fork of [miantiao-me/Sink](https://github.com/mian
 - **Single-source deploy configuration** — `DEPLOY_*` variables generate the deploy-time wrangler config
 - **Dashboard cache** — switching folders or pages first shows what this tab already loaded; each page loads 48 links
 
-<br clear="right"/>
+<br/>
 
 ## Quick start
 
