@@ -16,8 +16,6 @@
 
 ## 總覽
 
-<img align="right" width="420" alt="Sink 連結管理頁面" src="docs/images/sink.cool_dashboard_links.png" />
-
 可直接在 Cloudflare Worker 部署，不需要自己的伺服器
 
 本 repo 是 [miantiao-me/Sink](https://github.com/miantiao-me/Sink) 的修改版，加入資料夾、移除 Workers KV 並調整部署設定，完整改動見 commit 紀錄
