@@ -56,6 +56,17 @@ function defineTool<S extends StandardSchemaWithJSON>(tool: Omit<McpToolDefiniti
 
 const FILTER_NOTE = 'Every filter accepts a comma-separated list of values.'
 
+/**
+ * The create contract minus what the server assigns. `tools/list` renders zod
+ * defaults as the concrete values generated for that one call, so advertising
+ * `id`/timestamps/slug defaults would let a client echo one fixed id into every
+ * new link and merge their analytics. Handlers re-parse with `CreateLinkSchema`
+ * to fill them in.
+ */
+const NewLinkToolSchema = CreateLinkSchema
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({ slug: CreateLinkSchema.shape.slug.unwrap().optional() })
+
 /** Tools reaching the link store, which the REST routes gate through middleware. */
 const linkTools: McpToolDefinition[] = [
   defineTool({
@@ -121,10 +132,10 @@ const linkTools: McpToolDefinition[] = [
   defineTool({
     name: 'create_link',
     description: 'Create a short link. Fails when the slug is already taken; use upsert_link to reuse an existing link instead.',
-    inputSchema: CreateLinkSchema,
+    inputSchema: NewLinkToolSchema,
     annotations: { destructiveHint: false, idempotentHint: false },
     handler(event, args) {
-      return saveNewLink(event, args)
+      return saveNewLink(event, CreateLinkSchema.parse(args))
     },
   }),
   defineTool({
@@ -139,10 +150,10 @@ const linkTools: McpToolDefinition[] = [
   defineTool({
     name: 'upsert_link',
     description: 'Return the existing link for a slug, or create it when absent. The result reports whether it was `created` or `existing`.',
-    inputSchema: CreateLinkSchema,
+    inputSchema: NewLinkToolSchema,
     annotations: { destructiveHint: false, idempotentHint: true },
     handler(event, args) {
-      return upsertLink(event, args)
+      return upsertLink(event, CreateLinkSchema.parse(args))
     },
   }),
   defineTool({

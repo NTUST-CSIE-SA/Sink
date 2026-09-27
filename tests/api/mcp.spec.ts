@@ -218,6 +218,19 @@ describe('/api/mcp handshake', () => {
     expect(tools.get_analytics_heatmap.properties.limit).toBeUndefined()
     expect(tools.get_analytics_heatmap.properties.clientTimezone).toBeDefined()
   })
+
+  it('keeps server-assigned fields and generated defaults out of the create contracts', async () => {
+    const payload = await readEnvelope(await postRpc(1, 'tools/list'))
+    const tools = Object.fromEntries(
+      payload.result?.tools.map((tool: { name: string, inputSchema: any }) => [tool.name, tool.inputSchema]),
+    )
+
+    for (const name of ['create_link', 'upsert_link']) {
+      for (const field of ['id', 'createdAt', 'updatedAt'])
+        expect(tools[name].properties[field], `${name}.${field}`).toBeUndefined()
+      expect(tools[name].properties.slug.default, `${name}.slug default`).toBeUndefined()
+    }
+  })
 })
 
 describe('/api/mcp tools', () => {
@@ -232,6 +245,19 @@ describe('/api/mcp tools', () => {
     const read = await callTool('get_link', { slug })
     expect(read.payload.result?.structuredContent.url).toBe('https://example.com/mcp')
     expect(read.payload.result?.content[0].type).toBe('text')
+  })
+
+  it('assigns its own id and timestamps when a caller sends them', async () => {
+    const slug = trackSlug(`mcp-${crypto.randomUUID()}`)
+
+    const created = await callTool('create_link', { url: 'https://example.com/mcp-id', slug, id: 'caller-picked', createdAt: 1, updatedAt: 1 })
+    expect(created.payload.result?.isError).toBeUndefined()
+
+    // Analytics are keyed by id, so a caller-chosen id could merge two links' stats.
+    const { link } = created.payload.result?.structuredContent
+    expect(link.id).not.toBe('caller-picked')
+    expect(link.createdAt).toBeGreaterThan(1)
+    expect(link.updatedAt).toBeGreaterThan(1)
   })
 
   it('deletes a link', async () => {
