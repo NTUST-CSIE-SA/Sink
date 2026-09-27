@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearLinkMigrationState, deleteStoredLinks, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink, setLinkStoreD1Mode } from '../utils'
+import { deleteStoredLinks, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink } from '../utils'
 
 const MCP_PATH = '/api/mcp'
 const PROTOCOL_VERSION = '2025-11-25'
@@ -8,9 +8,8 @@ const LEGACY_VERSIONS = ['2025-03-26', '2024-11-05']
 
 const createdSlugs = new Set<string>()
 
-beforeEach(async () => {
+beforeEach(() => {
   env.NUXT_PUBLIC_LINK_PROXY_ENABLED = 'false'
-  await setLinkStoreD1Mode()
 })
 
 afterEach(async () => {
@@ -363,35 +362,6 @@ describe('/api/mcp analytics tools', () => {
     const { payload } = await callTool(tool, args)
     expect(payload.result?.isError).toBe(true)
     expect(payload.result?.content[0].text).toContain(field)
-  })
-})
-
-describe('link store gate', () => {
-  // The gate sits in middleware for the REST link routes while the MCP tools
-  // reach the store through the same assertion inside their handlers.
-  it('locks link tools but not analytics while migration is pending', async () => {
-    await clearLinkMigrationState()
-
-    const { payload: locked } = await callTool('list_links', {})
-    expect(locked.result?.isError).toBe(true)
-    expect(locked.result?.content[0].text).toContain('423')
-
-    const { payload: counters } = await callTool('get_analytics_counters', {})
-    expect(counters.result?.isError).toBeUndefined()
-    expect(counters.result?.structuredContent.data).toEqual(expect.any(Array))
-  })
-
-  it('locks REST link store routes but leaves store-free link APIs open', async () => {
-    await clearLinkMigrationState()
-
-    expect((await fetchWithAuth('/api/link/list')).status).toBe(423)
-
-    const runSpy = vi.spyOn(env.AI, 'run').mockRejectedValue(new Error('Workers AI unavailable'))
-    const toMarkdownSpy = vi.spyOn(env.AI, 'toMarkdown').mockRejectedValue(new Error('Markdown conversion unavailable'))
-    const response = await fetchWithAuth(`/api/link/ai?url=${encodeURIComponent('https://example.com/gate-check')}`)
-    expect(response.status).toBe(200)
-    runSpy.mockRestore()
-    toMarkdownSpy.mockRestore()
   })
 })
 

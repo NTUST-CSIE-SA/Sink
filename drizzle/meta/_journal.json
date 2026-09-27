@@ -50,6 +50,13 @@
       "when": 1790489591113,
       "tag": "0006_tan_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790492628990,
+      "tag": "0007_drop_kv_migration_tables",
+      "breakpoints": true
     }
   ]
 }

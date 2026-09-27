@@ -1,12 +1,8 @@
 import { env } from 'cloudflare:workers'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { deleteStoredLinks, fetch, postJson, setLinkStoreD1Mode } from './utils'
+import { afterEach, describe, expect, it } from 'vitest'
+import { deleteStoredLinks, fetch, postJson } from './utils'
 
 const createdSlugs: string[] = []
-
-beforeAll(async () => {
-  await setLinkStoreD1Mode()
-})
 
 afterEach(async () => {
   env.NUXT_PUBLIC_LINK_PROXY_ENABLED = 'false'

@@ -1,15 +1,11 @@
 import { env } from 'cloudflare:workers'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { deleteStoredLinks, fetch, postJson, setLinkStoreD1Mode } from './utils'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { deleteStoredLinks, fetch, postJson } from './utils'
 
 // Analytics Engine rejects a data point whose blobs exceed 16 KB in total.
 const MAX_BLOB_BYTES = 16 * 1024
 
 const createdSlugs: string[] = []
-
-beforeAll(async () => {
-  await setLinkStoreD1Mode()
-})
 
 afterAll(async () => {
   await deleteStoredLinks(createdSlugs)

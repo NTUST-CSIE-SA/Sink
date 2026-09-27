@@ -34,11 +34,6 @@ vi.mock('../../server/services/link-store/kv', () => ({
   readLegacyKvLink: vi.fn(),
 }))
 
-vi.mock('../../server/services/link-store/migration', () => ({
-  insertMigratedKvLink: vi.fn(),
-  readCompletedLinkMigrationMarker: vi.fn(),
-}))
-
 describe('createLinks', () => {
   afterEach(() => {
     vi.restoreAllMocks()

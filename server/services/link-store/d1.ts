@@ -6,7 +6,7 @@ import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, 
 import { drizzle } from 'drizzle-orm/d1'
 import { createError } from 'h3'
 import { parseURL, stringifyParsedURL } from 'ufo'
-import { links, linkTags, linkTombstones, tags } from '../../database/schema'
+import { links, linkTags, tags } from '../../database/schema'
 import { getExpiration } from '../../utils/time'
 
 const D1_CURSOR_PREFIX = 'd1:v1:'
@@ -238,10 +238,6 @@ function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getData
     set: pendingValues,
     setWhere: and(isNotNull(links.effectiveExpiresAt), lte(links.effectiveExpiresAt, now)),
   }).returning({ slug: links.slug })
-  const clearTombstone = db.delete(linkTombstones).where(and(
-    eq(linkTombstones.slug, link.slug),
-    exists(db.select({ slug: links.slug }).from(links).where(pendingLink)),
-  ))
   const tagInserts = link.tags.map(tag => db.insert(tags).select(
     db.select({ name: sql<string>`${tag}`.as('name') }).from(links).where(pendingLink),
   ).onConflictDoNothing())
@@ -256,7 +252,7 @@ function buildCreateLinkStatements(event: H3Event, db: ReturnType<typeof getData
   ).onConflictDoNothing())
   const finalize = db.update(links).set({ effectiveExpiresAt }).where(pendingLink)
   return {
-    statements: [insert, clearTombstone, clearTags, ...tagInserts, ...associationInserts, finalize],
+    statements: [insert, clearTags, ...tagInserts, ...associationInserts, finalize],
     effectiveExpiresAt,
   }
 }
@@ -308,15 +304,7 @@ export async function d1UpdateLink(event: H3Event, link: Link, expected?: Expect
 }
 
 export async function d1DeleteLink(event: H3Event, slug: string): Promise<void> {
-  const db = getDatabase(event)
-  const now = Math.floor(Date.now() / 1000)
-  await db.batch([
-    db.delete(links).where(eq(links.slug, slug)),
-    db.insert(linkTombstones).values({ slug, deletedAt: now }).onConflictDoUpdate({
-      target: linkTombstones.slug,
-      set: { deletedAt: now },
-    }),
-  ])
+  await getDatabase(event).delete(links).where(eq(links.slug, slug))
 }
 
 function encodeCursor(cursor: D1Cursor): string {

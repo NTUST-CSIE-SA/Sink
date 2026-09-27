@@ -1,13 +1,12 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { links } from '../../server/database/schema'
-import { db, deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink, postJson, putJson, setLinkStoreD1Mode } from '../utils'
+import { db, deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink, postJson, putJson } from '../utils'
 
 const createdSlugs = new Set<string>()
 
-beforeEach(async () => {
+beforeEach(() => {
   env.NUXT_PUBLIC_LINK_PROXY_ENABLED = 'false'
-  await setLinkStoreD1Mode()
 })
 
 function trackSlug(slug: string) {

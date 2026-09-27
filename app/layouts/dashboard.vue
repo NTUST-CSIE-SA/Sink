@@ -6,15 +6,10 @@ const route = useRoute()
 
 // The folder store backs the sidebar tree, the editor picker, the move dialog
 // and the card folder chip, so it is loaded here rather than by any one of them.
-// The folder endpoints sit behind the same migration gate as links.
-const migration = useLinkMigration()
 const foldersStore = useDashboardFoldersStore()
 const linksStore = useDashboardLinksStore()
 
-watch(migration.completed, (completed) => {
-  if (completed)
-    void foldersStore.fetchFolders()
-}, { immediate: true })
+void foldersStore.fetchFolders()
 
 // Folder counts shift whenever a link is created, edited or deleted. Debounced,
 // so a burst of edits reconciles once instead of issuing a request each time.

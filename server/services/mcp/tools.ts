@@ -27,7 +27,6 @@ import { checkLinksPage } from '../../utils/link-check'
 import { sanitizeLinkPassword, sanitizeLinksPassword } from '../../utils/link-password'
 import { removeLink, replaceLink, saveNewLink, upsertLink } from '../../utils/link-processing'
 import { countLinks, getLinkWithMetadata, listLinks, listTags, normalizeSlug, searchLinks } from '../../utils/link-store'
-import { assertLinkStoreReady } from '../link-store/migration'
 
 interface McpToolDefinition {
   name: string
@@ -67,7 +66,6 @@ const NewLinkToolSchema = CreateLinkSchema
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({ slug: CreateLinkSchema.shape.slug.unwrap().optional() })
 
-/** Tools reaching the link store, which the REST routes gate through middleware. */
 const linkTools: McpToolDefinition[] = [
   defineTool({
     name: 'list_links',
@@ -207,8 +205,6 @@ const analyticsTools: McpToolDefinition[] = [
   }),
 ]
 
-const linkToolNames = new Set(linkTools.map(tool => tool.name))
-
 /** Explicit 4xx business errors reach the model verbatim; anything else is logged once and reported generically. */
 function toolErrorText(toolName: string, error: unknown): string {
   if (isError(error)) {
@@ -238,9 +234,6 @@ export function registerMcpTools(server: McpServer, event: H3Event): void {
       annotations: { readOnlyHint: false, openWorldHint: false, ...tool.annotations },
     }, async (args): Promise<CallToolResult> => {
       try {
-        if (linkToolNames.has(tool.name))
-          await assertLinkStoreReady(event)
-
         const data = await tool.handler(event, args)
         // The payload also ships as `structuredContent`, so the text block stays
         // compact; it exists for clients that predate structured results.

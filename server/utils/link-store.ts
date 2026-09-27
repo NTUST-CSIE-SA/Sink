@@ -20,7 +20,6 @@ import {
   d1UpdateLink,
 } from '../services/link-store/d1'
 import { deleteLinkCache, isActiveLinkExpiration, putLinkCache, readLegacyKvLink } from '../services/link-store/kv'
-import { insertMigratedKvLink, readCompletedLinkMigrationMarker } from '../services/link-store/migration'
 
 export function normalizeSlug(event: H3Event, slug: string): string {
   const { caseSensitive } = useRuntimeConfig(event)
@@ -46,9 +45,6 @@ export async function getLink(event: H3Event, slug: string, cacheTtl?: number): 
   const cached = await readLegacyKvLink(event, slug, cacheTtl)
   if (cached.link)
     return cached.link
-
-  if (!await readCompletedLinkMigrationMarker(event.context.cloudflare.env))
-    return null
 
   const stored = await d1GetActiveLink(event, slug)
   if (!stored)
@@ -126,10 +122,6 @@ export async function createLinks(event: H3Event, links: Link[]): Promise<Create
     await Promise.all(successful.map(item => deleteLinkCache(event, item.link.slug)))
   }
   return results.map(result => ({ created: result.created }))
-}
-
-export async function migrateKvLink(event: H3Event, link: Link, effectiveExpiresAt?: number): Promise<boolean> {
-  return await insertMigratedKvLink(event, link, effectiveExpiresAt)
 }
 
 export async function updateLink(event: H3Event, link: Link, expected?: ExpectedLinkVersion): Promise<boolean> {

@@ -1,5 +1,5 @@
 import type { Folder, FolderWithCount } from '../../shared/schemas/folder'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { MAX_FOLDER_DEPTH } from '../../shared/schemas/folder'
 import {
   deleteStoredFolders,
@@ -9,7 +9,6 @@ import {
   getD1Link,
   postJson,
   putJson,
-  setLinkStoreD1Mode,
 } from '../utils'
 
 interface FolderListResponse {
@@ -78,10 +77,6 @@ async function listLinkSlugs(query: string): Promise<string[]> {
   const data = await response.json<{ links: { slug: string }[] }>()
   return data.links.map(link => link.slug)
 }
-
-beforeAll(async () => {
-  await setLinkStoreD1Mode()
-})
 
 afterAll(async () => {
   await deleteStoredLinks([...createdSlugs])

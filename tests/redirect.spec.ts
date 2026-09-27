@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { deleteStoredLinks, fetch, postJson, setLinkStoreD1Mode } from './utils'
+import { deleteStoredLinks, fetch, postJson } from './utils'
 
 type CfRequestInit = RequestInit & { cf?: { country?: string } }
 type UpstreamHandler = (init: RequestInit | undefined) => Response | Promise<Response>
@@ -9,10 +9,9 @@ const createdSlugs: string[] = []
 const upstreamHandlers = new Map<string, UpstreamHandler>()
 let fetchSpy: ReturnType<typeof vi.spyOn> | undefined
 
-beforeAll(async () => {
+beforeAll(() => {
   // The proxy tests below need the instance flag; the contract is opt-in.
   env.NUXT_PUBLIC_LINK_PROXY_ENABLED = 'true'
-  await setLinkStoreD1Mode()
 })
 
 afterEach(() => {
