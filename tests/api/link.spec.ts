@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { links } from '../../server/database/schema'
-import { db, deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink, postJson, putJson } from '../utils'
+import { db, deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getD1Link, postJson, putJson } from '../utils'
 
 const createdSlugs = new Set<string>()
 
@@ -181,13 +181,13 @@ describe('/api/link/create', { concurrent: false }, () => {
   it('returns 400 when slug is reserved', async () => {
     const response = await postJson('/api/link/create', { url: 'https://example.com', slug: 'dashboard' })
     expect(response.status).toBe(400)
-    expect(await getStoredLink('dashboard')).toBeNull()
+    expect(await getD1Link('dashboard')).toBeNull()
   })
 
   it('returns 400 when slug only differs from a reserved slug by case', async () => {
     const response = await postJson('/api/link/create', { url: 'https://example.com', slug: 'Dashboard' })
     expect(response.status).toBe(400)
-    expect(await getStoredLink('dashboard')).toBeNull()
+    expect(await getD1Link('dashboard')).toBeNull()
   })
 
   it('creates a link whose slug only contains a reserved slug', async () => {
@@ -254,7 +254,7 @@ describe('/api/link/upsert', { concurrent: false }, () => {
   it('returns 400 when slug is reserved', async () => {
     const response = await postJson('/api/link/upsert', { url: 'https://example.com', slug: 'dashboard' })
     expect(response.status).toBe(400)
-    expect(await getStoredLink('dashboard')).toBeNull()
+    expect(await getD1Link('dashboard')).toBeNull()
   })
 
   it('masks password in response and stores hashed password', async () => {
@@ -405,21 +405,21 @@ describe('/api/link/edit', { concurrent: false }, () => {
 
     const createdData = await createResponse.json() as { link: { password?: string } }
     expectMaskedPassword(createdData.link.password, initialPassword)
-    const storedAfterCreate = await getStoredLink(payload.slug)
+    const storedAfterCreate = await getD1Link(payload.slug)
     await expectStoredHashedPassword(payload.slug, initialPassword)
 
     const preservePasswordResponse = await putJson('/api/link/edit', { url: payload.url, slug: payload.slug })
     expect(preservePasswordResponse.status).toBe(201)
     const preserveData = await preservePasswordResponse.json() as { link: { password?: string } }
     expectMaskedPassword(preserveData.link.password, initialPassword)
-    const storedAfterPreserve = await getStoredLink(payload.slug)
+    const storedAfterPreserve = await getD1Link(payload.slug)
     expect(storedAfterPreserve?.password).toBe(storedAfterCreate?.password)
 
     const changePasswordResponse = await putJson('/api/link/edit', { url: payload.url, slug: payload.slug, password: newPassword })
     expect(changePasswordResponse.status).toBe(201)
     const changeData = await changePasswordResponse.json() as { link: { password?: string } }
     expectMaskedPassword(changeData.link.password, newPassword)
-    const storedAfterChange = await getStoredLink(payload.slug)
+    const storedAfterChange = await getD1Link(payload.slug)
     await expectStoredHashedPassword(payload.slug, newPassword)
     expect(storedAfterChange?.password).not.toBe(storedAfterCreate?.password)
 
@@ -427,8 +427,8 @@ describe('/api/link/edit', { concurrent: false }, () => {
     expect(clearPasswordResponse.status).toBe(201)
     const clearData = await clearPasswordResponse.json() as { link: { password?: string } }
     expect(clearData.link.password).toBeUndefined()
-    const storedAfterClear = await getStoredLink(payload.slug)
-    expect(storedAfterClear?.password).toBeUndefined()
+    const storedAfterClear = await getD1Link(payload.slug)
+    expect(storedAfterClear?.password).toBeNull()
   })
 
   it('removes optional fields when not provided in edit', async () => {
@@ -564,7 +564,6 @@ describe('link proxy field persistence', { concurrent: false }, () => {
       proxy: true,
       normalizedUrl: 'https://example.com/legacy',
     })
-    await env.KV.put(`link:${slug}`, JSON.stringify({ slug, id, url: 'https://example.com/legacy', createdAt: now, updatedAt: now, proxy: true, tags: [] }))
 
     const keepResponse = await putJson('/api/link/edit', {
       url: 'https://example.com/legacy',

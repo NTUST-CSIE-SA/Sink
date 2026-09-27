@@ -4,7 +4,7 @@ import type { PortableFolder } from '#shared/schemas/folder'
 import type { Link } from '#shared/schemas/link'
 import { d1ListPortableFolders } from '../services/link-store/folders'
 import { createBackupJsonStream, uploadBackupParts } from './backup-json-stream'
-import { iterateAllAuthoritativeLinks } from './link-store'
+import { iterateAllLinks } from './link-store'
 
 export interface BackupData {
   version: string
@@ -46,7 +46,7 @@ export async function backupLinksToR2(env: Cloudflare.Env, isManual: boolean = f
   const prefix = isManual ? 'manual-links-' : 'links-'
   const filename = `backups/${prefix}${timestamp}.json`
 
-  const backup = createBackupJsonStream(iterateAllAuthoritativeLinks(env), backupMetadata)
+  const backup = createBackupJsonStream(iterateAllLinks(env), backupMetadata)
   const stagingKey = `${filename}.pending-${crypto.randomUUID()}`
   const upload = await env.R2.createMultipartUpload(stagingKey, {
     httpMetadata: { contentType: 'application/json' },

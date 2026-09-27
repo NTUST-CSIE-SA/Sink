@@ -62,8 +62,8 @@ export const SlugSchema = z.string().trim().max(2048).regex(new RegExp(slugRegex
 // `server/middleware/1.redirect.ts` skips reserved slugs before it looks a link up, so a
 // link written to one never redirects. Reject them where new links come in, and compare
 // case-insensitively because write paths lowercase the slug unless `caseSensitive` is set.
-// Never apply this to stored or legacy KV records: links written before this check must
-// stay readable, exportable, and deletable.
+// Never apply this to stored records: links written before this check must stay readable,
+// exportable, and deletable.
 const NewSlugSchema = SlugSchema.refine(
   slug => !reservedSlugs.has(slug.toLowerCase()),
   'slug is reserved',
@@ -163,22 +163,6 @@ export const LinkSlugQuerySchema = z.object({
 export const DeleteLinkSchema = z.object({
   slug: SlugSchema.min(1),
 })
-
-export function parseLegacyKvLink(value: unknown, slug: string) {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    return StoredLinkSchema.safeParse(value)
-
-  const link = value as Record<string, unknown>
-  const now = Math.floor(Date.now() / 1000)
-  const isEmpty = (field: unknown) => field === undefined || field === null || (typeof field === 'string' && !field.trim())
-  return StoredLinkSchema.safeParse({
-    ...link,
-    id: isEmpty(link.id) ? nanoid(10)() : link.id,
-    slug: isEmpty(link.slug) ? slug : link.slug,
-    createdAt: isEmpty(link.createdAt) ? now : link.createdAt,
-    updatedAt: isEmpty(link.updatedAt) ? now : link.updatedAt,
-  })
-}
 
 export type Link = z.infer<typeof StoredLinkSchema>
 export type EditLink = z.infer<typeof EditLinkSchema>

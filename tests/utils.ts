@@ -1,4 +1,3 @@
-import type { Link } from '../shared/schemas/link'
 import { env, exports } from 'cloudflare:workers'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/d1'
@@ -41,20 +40,13 @@ export function putJson(path: string, body: unknown, withAuth = true): Promise<R
   })
 }
 
-export async function getStoredLink(slug: string) {
-  return await env.KV.get<Link>(`link:${slug}`, { type: 'json' })
-}
-
 export async function getD1Link(slug: string) {
   const [link] = await db.select().from(links).where(eq(links.slug, slug)).limit(1)
   return link ?? null
 }
 
 export async function deleteStoredLink(slug: string) {
-  await Promise.all([
-    env.KV.delete(`link:${slug}`),
-    db.delete(links).where(eq(links.slug, slug)),
-  ])
+  await db.delete(links).where(eq(links.slug, slug))
 }
 
 export async function deleteStoredLinks(slugs: string[]) {
@@ -81,7 +73,7 @@ export function expectMaskedPassword(password: string | undefined, plainText: st
 }
 
 export async function expectStoredHashedPassword(slug: string, plainText: string) {
-  const storedLink = await getStoredLink(slug)
+  const storedLink = await getD1Link(slug)
   expect(storedLink?.password?.startsWith(LINK_PASSWORD_HASH_PREFIX), storedLink?.password).toBe(true)
   expect(storedLink?.password).not.toBe(plainText)
 }

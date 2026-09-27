@@ -51,7 +51,7 @@ function hasOgConfig(link: Link): boolean {
 export default eventHandler(async (event) => {
   const { pathname: slug } = parsePath(event.path.replace(/^\/|\/$/g, ''))
   const { slugRegex, reserveSlug } = useAppConfig()
-  const { linkCacheTtl, caseSensitive, redirectWithQuery, redirectStatusCode, redirectNoStore } = useRuntimeConfig(event)
+  const { caseSensitive, redirectWithQuery, redirectStatusCode, redirectNoStore } = useRuntimeConfig(event)
   const runtimeConfig = useRuntimeConfig(event)
   const { linkProxyEnabled } = runtimeConfig.public
   // runtimeConfig.homeURL reads the deprecated NUXT_HOME_URL at runtime.
@@ -71,11 +71,11 @@ export default eventHandler(async (event) => {
     let link: Link | null = null
 
     const lowerCaseSlug = slug.toLowerCase()
-    link = await getLink(event, caseSensitive ? slug : lowerCaseSlug, linkCacheTtl)
+    link = await getLink(event, caseSensitive ? slug : lowerCaseSlug)
 
     if (!caseSensitive && !link && lowerCaseSlug !== slug) {
       console.log('original slug fallback:', `slug:${slug} lowerCaseSlug:${lowerCaseSlug}`)
-      link = await getLink(event, slug, linkCacheTtl)
+      link = await getLink(event, slug)
     }
 
     if (link) {

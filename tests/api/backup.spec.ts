@@ -26,7 +26,6 @@ describe('/api/backup', { concurrent: false }, () => {
     const slugs = {
       active: `backup-active-${crypto.randomUUID()}`,
       expired: `backup-expired-${crypto.randomUUID()}`,
-      legacy: `backup-legacy-${crypto.randomUUID()}`,
     }
     const tag = `backup-tag-${crypto.randomUUID()}`
     const pagePrefix = `backup-page-${crypto.randomUUID()}-`
@@ -52,19 +51,6 @@ describe('/api/backup', { concurrent: false }, () => {
           effectiveExpiresAt: null,
         })))
       }
-      const legacyLink = (slug: string, url: string, tags: string[] = []): Link => ({
-        id: crypto.randomUUID().slice(0, 10),
-        slug,
-        url,
-        createdAt: now,
-        updatedAt: now,
-        tags,
-      })
-      await Promise.all([
-        env.KV.put(`link:${slugs.active}`, JSON.stringify(legacyLink(slugs.active, 'https://stale.example.com'))),
-        env.KV.put(`link:${slugs.legacy}`, JSON.stringify(legacyLink(slugs.legacy, 'https://example.com/legacy'))),
-      ])
-
       const backupResponse = await postJson('/api/backup', {})
       expect(backupResponse.status).toBe(200)
       expect(await backupResponse.json()).toEqual({ success: true, message: 'Backup completed successfully' })
@@ -88,7 +74,6 @@ describe('/api/backup', { concurrent: false }, () => {
         expect.objectContaining({ slug: slugs.expired, expiration: now - 60 }),
       ] satisfies Partial<Link>[]))
       expect(backupData?.links.filter(link => link.slug.startsWith(pagePrefix)).map(link => link.slug)).toEqual(pageSlugs)
-      expect(backupData?.links.some(link => link.slug === slugs.legacy)).toBe(false)
     }
     finally {
       if (backupKey)

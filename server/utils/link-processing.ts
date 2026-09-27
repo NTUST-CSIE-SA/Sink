@@ -115,7 +115,7 @@ export async function saveNewLink(event: H3Event, link: Link): Promise<LinkRespo
 export async function upsertLink(event: H3Event, link: Link): Promise<LinkResponse & { status: 'created' | 'existing' }> {
   await prepareIncomingLink(event, link)
 
-  const existingLink = await getAuthoritativeLink(event, link.slug)
+  const existingLink = await getLink(event, link.slug)
   if (existingLink)
     return { ...buildLinkResponse(event, existingLink), status: 'existing' }
 
@@ -124,7 +124,7 @@ export async function upsertLink(event: H3Event, link: Link): Promise<LinkRespon
     return { ...buildLinkResponse(event, link), status: 'created' }
 
   // Another writer claimed the slug between the lookup and the insert.
-  const racedLink = await getAuthoritativeLink(event, link.slug)
+  const racedLink = await getLink(event, link.slug)
   if (!racedLink)
     throw createError({ status: 409, statusText: 'Link already exists' })
 
@@ -135,7 +135,7 @@ export async function replaceLink(event: H3Event, link: EditLink): Promise<LinkR
   assertLinkWritesAllowed(event, 'edit')
   link.slug = normalizeSlug(event, link.slug)
 
-  const existingLink = await getAnyAuthoritativeLink(event, link.slug)
+  const existingLink = await getAnyLink(event, link.slug)
   if (!existingLink)
     throw createError({ status: 404, statusText: 'Link not found' })
 

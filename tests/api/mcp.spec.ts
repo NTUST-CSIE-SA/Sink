@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteStoredLinks, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink } from '../utils'
+import { deleteStoredLinks, expectStoredHashedPassword, fetch, fetchWithAuth, getD1Link } from '../utils'
 
 const MCP_PATH = '/api/mcp'
 const PROTOCOL_VERSION = '2025-11-25'
@@ -313,12 +313,12 @@ describe('/api/mcp tools', () => {
 
     const updated = await callTool('update_link', { url: 'https://example.com/mcp-password', slug, password: '' })
     expect(updated.payload.result?.isError).toBeUndefined()
-    expect((await getStoredLink(slug))?.password).toBeUndefined()
+    expect((await getD1Link(slug))?.password).toBeNull()
 
     // Omitting the field afterwards keeps it cleared instead of restoring one.
     const kept = await callTool('update_link', { url: 'https://example.com/mcp-password', slug })
     expect(kept.payload.result?.isError).toBeUndefined()
-    expect((await getStoredLink(slug))?.password).toBeUndefined()
+    expect((await getD1Link(slug))?.password).toBeNull()
   })
 
   // Outbound checks are stubbed: the assertion covers the response shape,

@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers'
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it } from 'vitest'
 import { links, tags } from '../../server/database/schema'
-import { db, deleteStoredLinks, fetch, fetchWithAuth, getD1Link, getStoredLink, postJson, putJson } from '../utils'
+import { db, deleteStoredLinks, fetch, fetchWithAuth, getD1Link, postJson, putJson } from '../utils'
 
 const createdSlugs = new Set<string>()
 
@@ -25,10 +25,6 @@ function makeLink(slug = `d1-${crypto.randomUUID()}`, overrides: Partial<Link> =
   }
 }
 
-async function putKvLink(link: Link) {
-  await env.KV.put(`link:${link.slug}`, JSON.stringify(link))
-}
-
 async function insertD1Link(link: Link, effectiveExpiresAt: number | null = null) {
   await db.insert(links).values({
     slug: link.slug,
@@ -48,24 +44,26 @@ describe('d1 link integration', () => {
     createdSlugs.clear()
   })
 
-  it('uses D1 for management queries and valid KV hits for redirects', async () => {
+  it('serves redirects from D1 and reflects edits and deletes immediately', async () => {
     const link = makeLink()
     const response = await postJson('/api/link/create', { slug: link.slug, url: link.url })
     expect(response.status).toBe(201)
     expect(await getD1Link(link.slug)).toMatchObject({ slug: link.slug, url: link.url })
-    expect(await getStoredLink(link.slug)).toMatchObject({ slug: link.slug, url: link.url })
-    const cached = await env.KV.getWithMetadata(`link:${link.slug}`)
-    expect(cached.metadata).toBeNull()
 
-    await putKvLink({ ...link, url: 'https://tampered.example/' })
     const query = await fetchWithAuth(`/api/link/query?slug=${link.slug}`)
     expect(query.status).toBe(200)
     expect(await query.json()).toMatchObject({ slug: link.slug, url: link.url })
 
     const redirect = await fetch(`/${link.slug}`, { redirect: 'manual' })
     expect(redirect.status).toBe(301)
-    expect(redirect.headers.get('Location')).toBe('https://tampered.example/')
-    expect(await getStoredLink(link.slug)).toMatchObject({ slug: link.slug, url: 'https://tampered.example/' })
+    expect(redirect.headers.get('Location')).toBe(link.url)
+
+    const editedUrl = `${link.url}/edited`
+    expect((await putJson('/api/link/edit', { slug: link.slug, url: editedUrl })).status).toBe(201)
+    expect((await fetch(`/${link.slug}`, { redirect: 'manual' })).headers.get('Location')).toBe(editedUrl)
+
+    expect((await postJson('/api/link/delete', { slug: link.slug })).status).toBe(204)
+    expect((await fetch(`/${link.slug}`, { redirect: 'manual' })).status).toBe(404)
   })
 
   it('defaults list ordering to newest', async () => {
@@ -130,7 +128,6 @@ describe('d1 link integration', () => {
     expect((await postJson('/api/link/create', active)).status).toBe(201)
     expect((await postJson('/api/link/create', expired)).status).toBe(201)
     await db.update(links).set({ expiration: now - 1, effectiveExpiresAt: now - 1 }).where(eq(links.slug, expired.slug))
-    await env.KV.delete(`link:${expired.slug}`)
     const list = async (status?: string) => {
       const suffix = status ? `&status=${status}` : ''
       const response = await fetchWithAuth(`/api/link/list?tag=${tag}${suffix}`)
@@ -159,15 +156,13 @@ describe('d1 link integration', () => {
     expect(redirect.headers.get('Location')).toBe(expired.url)
   })
 
-  it('falls back to D1 for redirects on a KV cache miss', async () => {
+  it('redirects from a D1 row written outside the API', async () => {
     const link = makeLink()
     await insertD1Link(link)
-    await env.KV.delete(`link:${link.slug}`)
 
     const redirect = await fetch(`/${link.slug}`, { redirect: 'manual' })
     expect(redirect.status).toBe(301)
     expect(redirect.headers.get('Location')).toBe(link.url)
-    expect(await getStoredLink(link.slug)).toMatchObject({ slug: link.slug, url: link.url })
   })
 
   it('does not let a conflicting edit overwrite tags from the successful edit', async () => {
@@ -199,7 +194,6 @@ describe('d1 link integration', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ success: 1, failed: 0 })
     expect(await getD1Link(imported.slug)).toMatchObject({ id: imported.id, effectiveExpiresAt: imported.expiration })
-    expect(await getStoredLink(imported.slug)).toBeNull()
   })
 
   it('exports and reimports an expired link with its identity and tags', async () => {
@@ -208,7 +202,6 @@ describe('d1 link integration', () => {
     const link = makeLink(undefined, { expiration: now + 3600, tags: [tag] })
     expect((await postJson('/api/link/create', link)).status).toBe(201)
     await db.update(links).set({ expiration: now - 60, effectiveExpiresAt: now - 60 }).where(eq(links.slug, link.slug))
-    await env.KV.delete(`link:${link.slug}`)
     const exported = await (await fetchWithAuth('/api/link/export')).json() as { links: Link[] }
     const archived = exported.links.find(item => item.slug === link.slug)
     expect(archived).toMatchObject({ id: link.id, tags: [tag], expiration: now - 60 })
@@ -221,7 +214,6 @@ describe('d1 link integration', () => {
     const activeList = await (await fetchWithAuth(`/api/link/list?status=active&tag=${tag}`)).json() as { links: Link[] }
     expect(activeList.links).toEqual([])
     expect((await fetch(`/${link.slug}`, { redirect: 'manual' })).status).toBe(404)
-    expect(await getStoredLink(link.slug)).toBeNull()
   })
 
   it('exports the effective expiration when the stored link has none', async () => {
@@ -387,7 +379,6 @@ describe('d1 link integration', () => {
     expect((await postJson('/api/link/create', active)).status).toBe(201)
     expect((await postJson('/api/link/create', expired)).status).toBe(201)
     await db.update(links).set({ expiration: now - 1, effectiveExpiresAt: now - 1 }).where(eq(links.slug, expired.slug))
-    await env.KV.delete(`link:${expired.slug}`)
     const search = async (status?: string, requestedTag = tag.toUpperCase()) => {
       const statusQuery = status ? `&status=${status}` : ''
       const response = await fetchWithAuth(`/api/link/search?q=${query}&tag=${requestedTag}${statusQuery}`)
@@ -407,23 +398,5 @@ describe('d1 link integration', () => {
     expect((await fetchWithAuth(`/api/link/search?q=${encodeURIComponent('界'.repeat(17))}`)).status).toBe(400)
     expect((await fetchWithAuth(`/api/link/search?q=${encodeURIComponent('İ'.repeat(16))}`)).status).toBe(200)
     expect((await fetchWithAuth(`/api/link/search?q=${encodeURIComponent('İ'.repeat(17))}`)).status).toBe(400)
-  })
-
-  it('fills KV from a D1 redirect miss without leaking internal fields', async () => {
-    const active = makeLink()
-    await insertD1Link(active)
-    await env.KV.delete(`link:${active.slug}`)
-    const redirect = await fetch(`/${active.slug}`, { redirect: 'manual' })
-    expect(redirect.status).toBeGreaterThanOrEqual(300)
-    const cached = await getStoredLink(active.slug)
-    expect(cached).toMatchObject(active)
-    expect(cached).not.toHaveProperty('normalizedUrl')
-    expect(cached).not.toHaveProperty('effectiveExpiresAt')
-
-    const expired = makeLink()
-    await insertD1Link(expired, Math.floor(Date.now() / 1000) - 1)
-    await env.KV.delete(`link:${expired.slug}`)
-    expect((await fetch(`/${expired.slug}`, { redirect: 'manual' })).status).toBe(404)
-    expect(await getStoredLink(expired.slug)).toBeNull()
   })
 })

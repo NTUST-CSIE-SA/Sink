@@ -19,7 +19,6 @@ export default defineNuxtConfig({
     cfAccessTeamDomain: '',
     cfAccessAud: '',
     redirectStatusCode: '301',
-    linkCacheTtl: 60,
     redirectWithQuery: false,
     redirectNoStore: false,
     // Deprecated NUXT_HOME_URL alias; kept so pre-public deployments keep redirecting `/`.

@@ -1,5 +1,4 @@
 import type { LinkCheckResponse } from '../../shared/types/link-check'
-import { env } from 'cloudflare:workers'
 import { eq } from 'drizzle-orm'
 import { describe, expect, it, vi } from 'vitest'
 import { links } from '../../server/database/schema'
@@ -64,7 +63,6 @@ describe('/api/link/check', { concurrent: false }, () => {
     await db.update(links)
       .set({ expiration: expiredAt, effectiveExpiresAt: expiredAt })
       .where(eq(links.slug, link.slug))
-    await env.KV.delete(`link:${link.slug}`)
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Blocked test outbound request'))
 
     try {
