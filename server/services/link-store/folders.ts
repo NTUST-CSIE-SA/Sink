@@ -213,12 +213,6 @@ export async function d1DeleteFolder(event: H3Event, id: string): Promise<boolea
   return true
 }
 
-/** Slugs whose folder assignment a delete is about to clear, for cache eviction. */
-export async function d1ListFolderLinkSlugs(event: H3Event, id: string): Promise<string[]> {
-  const rows = await getDatabase(event).select({ slug: links.slug }).from(links).where(eq(links.folderId, id))
-  return rows.map(row => row.slug)
-}
-
 export async function d1MoveLinks(event: H3Event, slugs: string[], folderId: string | null): Promise<string[]> {
   const db = getDatabase(event)
   if (folderId) {

@@ -1,9 +1,8 @@
-import type { Link } from '../shared/schemas/link'
 import { env, exports } from 'cloudflare:workers'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/d1'
 import { expect } from 'vitest'
-import { folders, linkMigrationRuns, links, linkTombstones } from '../server/database/schema'
+import { folders, links } from '../server/database/schema'
 import { LINK_PASSWORD_HASH_PREFIX, LINK_PASSWORD_MASK_PREFIX } from '../shared/utils/link-password'
 
 export const db = drizzle(env.DB)
@@ -41,21 +40,13 @@ export function putJson(path: string, body: unknown, withAuth = true): Promise<R
   })
 }
 
-export async function getStoredLink(slug: string) {
-  return await env.KV.get<Link>(`link:${slug}`, { type: 'json' })
-}
-
 export async function getD1Link(slug: string) {
   const [link] = await db.select().from(links).where(eq(links.slug, slug)).limit(1)
   return link ?? null
 }
 
 export async function deleteStoredLink(slug: string) {
-  await Promise.all([
-    env.KV.delete(`link:${slug}`),
-    db.delete(links).where(eq(links.slug, slug)),
-    db.delete(linkTombstones).where(eq(linkTombstones.slug, slug)),
-  ])
+  await db.delete(links).where(eq(links.slug, slug))
 }
 
 export async function deleteStoredLinks(slugs: string[]) {
@@ -73,27 +64,6 @@ export async function deleteStoredFolders(ids: string[]) {
     await db.delete(folders).where(eq(folders.id, id))
 }
 
-export async function clearLinkMigrationState() {
-  await db.delete(linkMigrationRuns)
-}
-
-export async function setLinkStoreD1Mode() {
-  await clearLinkMigrationState()
-  const now = Math.floor(Date.now() / 1000)
-  await db.insert(linkMigrationRuns).values({
-    id: `test-completed-${crypto.randomUUID()}`,
-    expectedCursor: null,
-    scanned: 0,
-    inserted: 0,
-    skipped: 0,
-    expired: 0,
-    force: false,
-    status: 'completed',
-    createdAt: now,
-    updatedAt: now,
-  })
-}
-
 export function expectMaskedPassword(password: string | undefined, plainText: string) {
   expect(password).toBeDefined()
   expect(password?.startsWith(LINK_PASSWORD_MASK_PREFIX), password).toBe(true)
@@ -103,7 +73,7 @@ export function expectMaskedPassword(password: string | undefined, plainText: st
 }
 
 export async function expectStoredHashedPassword(slug: string, plainText: string) {
-  const storedLink = await getStoredLink(slug)
+  const storedLink = await getD1Link(slug)
   expect(storedLink?.password?.startsWith(LINK_PASSWORD_HASH_PREFIX), storedLink?.password).toBe(true)
   expect(storedLink?.password).not.toBe(plainText)
 }

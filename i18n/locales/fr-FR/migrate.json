@@ -1,23 +1,5 @@
 {
   "migrate": {
-    "d1": {
-      "title": "Migration de KV vers D1",
-      "description": "Copiez les liens de Workers KV vers D1 sans remplacer les enregistrements existants.",
-      "status_title": "État de la migration",
-      "status_pending": "La migration n’est pas terminée.",
-      "status_completed": "Migration terminée.",
-      "completed_at": "Terminée le {date}",
-      "run_again": "Relancer",
-      "running": "Migration…",
-      "success": "Migration terminée avec succès.",
-      "failed": "Échec de la migration",
-      "scanned": "Analysés",
-      "inserted": "Insérés",
-      "skipped": "Ignorés",
-      "expired": "Expirés",
-      "failed_count": "Échecs",
-      "no_marker": "Aucun marqueur de fin trouvé."
-    },
     "access_export": {
       "title": "Exporter les données d’accès",
       "description": "Télécharger les statistiques d’accès au format CSV",
@@ -41,6 +23,8 @@
       "title": "Exporter les liens",
       "description": "Téléchargez tous vos liens au format JSON",
       "button": "Tout exporter",
+      "button_active": "Exporter les actifs",
+      "button_expired": "Exporter les expirés",
       "total_links": "Total des liens",
       "success": "Export réussi",
       "failed": "Échec de l'export"
@@ -48,6 +32,7 @@
     "import": {
       "title": "Importer des liens",
       "description": "Téléchargez un fichier JSON pour importer des liens",
+      "preview_mode_tip": "Le mode aperçu ne permet pas d'importer des liens.",
       "dropzone": "Déposez le fichier JSON ici ou cliquez pour télécharger",
       "links_found": "{count} liens prêts à importer",
       "button": "Lancer l'import",

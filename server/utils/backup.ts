@@ -3,9 +3,8 @@
 import type { PortableFolder } from '#shared/schemas/folder'
 import type { Link } from '#shared/schemas/link'
 import { d1ListPortableFolders } from '../services/link-store/folders'
-import { readCompletedLinkMigrationMarker } from '../services/link-store/migration'
 import { createBackupJsonStream, uploadBackupParts } from './backup-json-stream'
-import { iterateAllAuthoritativeLinks } from './link-store'
+import { iterateAllLinks } from './link-store'
 
 export interface BackupData {
   version: string
@@ -17,7 +16,7 @@ export interface BackupData {
 
 export type BackupResult
   = | { completed: true, filename: string, count: number }
-    | { completed: false, reason: 'migration-incomplete' | 'r2-not-configured' }
+    | { completed: false, reason: 'r2-not-configured' }
 
 async function runCleanup(action: string, cleanup: () => Promise<unknown>): Promise<void> {
   try {
@@ -29,11 +28,6 @@ async function runCleanup(action: string, cleanup: () => Promise<unknown>): Prom
 }
 
 export async function backupLinksToR2(env: Cloudflare.Env, isManual: boolean = false): Promise<BackupResult> {
-  if (!await readCompletedLinkMigrationMarker(env)) {
-    console.info('[backup] Link migration is incomplete, skipping backup')
-    return { completed: false, reason: 'migration-incomplete' }
-  }
-
   if (!env.R2) {
     console.info('[backup] R2 binding not configured, skipping backup')
     return { completed: false, reason: 'r2-not-configured' }
@@ -52,7 +46,7 @@ export async function backupLinksToR2(env: Cloudflare.Env, isManual: boolean = f
   const prefix = isManual ? 'manual-links-' : 'links-'
   const filename = `backups/${prefix}${timestamp}.json`
 
-  const backup = createBackupJsonStream(iterateAllAuthoritativeLinks(env), backupMetadata)
+  const backup = createBackupJsonStream(iterateAllLinks(env), backupMetadata)
   const stagingKey = `${filename}.pending-${crypto.randomUUID()}`
   const upload = await env.R2.createMultipartUpload(stagingKey, {
     httpMetadata: { contentType: 'application/json' },

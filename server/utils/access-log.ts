@@ -107,6 +107,11 @@ export function doubles2logs(doubles: number[]) {
   }, {} as Partial<LogsMap>)
 }
 
+// Analytics Engine rejects a data point whose blobs exceed 16 KB in total, and
+// destinations may now be up to 24,000 characters. Log at most the 2,048 the
+// URL limit allowed before it became configurable, so the click still counts.
+const MAX_LOGGED_URL_LENGTH = 2048
+
 function getCountryName(country?: string): string {
   try {
     return new Intl.DisplayNames(['en'], { type: 'region' }).of(country || 'WD') || 'Worldwide'
@@ -150,7 +155,7 @@ export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
 
   const countryName = getCountryName(cf?.country)
   const logs = {
-    url: link.url,
+    url: link.url?.slice(0, MAX_LOGGED_URL_LENGTH),
     slug: link.slug,
     ua: userAgent,
     ip,

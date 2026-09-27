@@ -7,20 +7,12 @@ description: Fix common deploy, login, analytics, redirect, import, backup, and 
 
 ## I cannot create or open short links
 
-1. Confirm D1 and KV are bound with the exact names `DB` and `KV`
-2. Redeploy the latest `master` branch
-3. Open **Dashboard → Links** once (one-time storage setup)
-
-If you see **“storage not ready” (HTTP 423)**, step 3 is missing. New installs only need that one open. Very old KV-only installs need [storage migration](/storage/kv-to-d1).
-
-<details>
-  <summary><b>KV binding screenshot</b></summary>
-  <img alt="KV binding settings in Cloudflare" src="./images/faqs-kv.png">
-</details>
+1. Confirm D1 is bound with the exact name `DB`
+2. Redeploy the latest `master` branch so its D1 migrations run
 
 ## I cannot sign in or call the API
 
-The password must match `NUXT_SITE_TOKEN` exactly (no extra spaces). Use at least 8 characters. If you never set the token, a random build-time password may have been used — set an explicit secret and redeploy.
+The password must match `NUXT_SITE_TOKEN` exactly (no extra spaces or whitespace). Use at least 8 characters. If you never set the token, a random build-time password may have been used — set an explicit secret and redeploy.
 
 If you use Cloudflare Access:
 
@@ -72,12 +64,11 @@ Keep each request within half the export page size. Use protected passwords from
 ## Backup was not created
 
 1. Confirm `R2` is bound
-2. Open **Dashboard → Links** once if storage is not ready yet (backup returns 423 until then)
-3. Workers scheduled backups: check `NUXT_DISABLE_AUTO_BACKUP` and Cron
-4. Pages: use manual backup only in this repo
+2. Workers scheduled backups: check `NUXT_DISABLE_AUTO_BACKUP` and Cron
+3. Pages: use manual backup only in this repo
 
 ## Redirect still looks old
 
-Browser, CDN, or KV cache can delay what you see. Check `NUXT_LINK_CACHE_TTL` and `NUXT_REDIRECT_NO_STORE` in [configuration](/configuration/#advanced-defaults), then confirm the link in the dashboard.
+Browser or CDN caching can delay what you see, especially for `301` redirects. Check `NUXT_REDIRECT_STATUS_CODE` and `NUXT_REDIRECT_NO_STORE` in [configuration](/configuration/#advanced-defaults), then confirm the link in the dashboard.
 
 Unknown short codes (`NUXT_NOT_FOUND_REDIRECT`) always use **302**, even when normal redirects use `301`.

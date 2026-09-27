@@ -1,11 +1,12 @@
 import { env } from 'cloudflare:workers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getStoredLink, postJson, putJson, setLinkStoreD1Mode } from '../utils'
+import { links } from '../../server/database/schema'
+import { db, deleteStoredLinks, expectMaskedPassword, expectStoredHashedPassword, fetch, fetchWithAuth, getD1Link, postJson, putJson } from '../utils'
 
 const createdSlugs = new Set<string>()
 
-beforeEach(async () => {
-  await setLinkStoreD1Mode()
+beforeEach(() => {
+  env.NUXT_PUBLIC_LINK_PROXY_ENABLED = 'false'
 })
 
 function trackSlug(slug: string) {
@@ -114,6 +115,35 @@ describe('/api/link/create', { concurrent: false }, () => {
     expect(data.shortLink).toContain(payload.slug)
   })
 
+  it('creates and searches for a long target URL', async () => {
+    const slug = trackSlug(`long-url-${crypto.randomUUID()}`)
+    const url = `https://example.com/preview?payload=${'a'.repeat(9_000)}`
+    const response = await postJson('/api/link/create', { url, slug })
+
+    expect(response.status).toBe(201)
+    const data = await response.json() as { link: { url: string } }
+    expect(data.link.url).toBe(url)
+
+    const searchResponse = await postJson('/api/link/search', { url, limit: 20 })
+    expect(searchResponse.status).toBe(200)
+    expect(await searchResponse.json()).toEqual([expect.objectContaining({
+      slug,
+      url: 'https://example.com/preview',
+    })])
+  })
+
+  it('returns 400 when URL exceeds the configured maximum length', async () => {
+    const url = `https://example.com/?payload=${'a'.repeat(16_384)}`
+    const response = await postJson('/api/link/create', {
+      url,
+      slug: `overlong-url-${crypto.randomUUID()}`,
+    })
+
+    expect(response.status).toBe(400)
+    const data = await response.json() as { data: { message: string } }
+    expect(data.data.message).toContain('URL must not exceed 16384 characters')
+  })
+
   it('returns 409 when slug already exists', async () => {
     const payload = createLinkPayload()
     await postJson('/api/link/create', payload)
@@ -146,6 +176,27 @@ describe('/api/link/create', { concurrent: false }, () => {
   it('returns 400 when url is invalid', async () => {
     const response = await postJson('/api/link/create', { url: 'not-a-valid-url', slug: 'test-slug' })
     expect(response.status).toBe(400)
+  })
+
+  it('returns 400 when slug is reserved', async () => {
+    const response = await postJson('/api/link/create', { url: 'https://example.com', slug: 'dashboard' })
+    expect(response.status).toBe(400)
+    expect(await getD1Link('dashboard')).toBeNull()
+  })
+
+  it('returns 400 when slug only differs from a reserved slug by case', async () => {
+    const response = await postJson('/api/link/create', { url: 'https://example.com', slug: 'Dashboard' })
+    expect(response.status).toBe(400)
+    expect(await getD1Link('dashboard')).toBeNull()
+  })
+
+  it('creates a link whose slug only contains a reserved slug', async () => {
+    const slug = trackSlug(`dashboard-${crypto.randomUUID()}`)
+    const response = await postJson('/api/link/create', { url: 'https://example.com', slug })
+    expect(response.status).toBe(201)
+
+    const data = await response.json() as { link: { slug: string } }
+    expect(data.link.slug).toBe(slug)
   })
 
   it('accepts lowercase geo key and returns uppercase key', async () => {
@@ -198,6 +249,12 @@ describe('/api/link/upsert', { concurrent: false }, () => {
 
     const response = await postJson('/api/link/upsert', { ...payload, url: 'https://updated.example.com' })
     expect(response.status).toBe(200)
+  })
+
+  it('returns 400 when slug is reserved', async () => {
+    const response = await postJson('/api/link/upsert', { url: 'https://example.com', slug: 'dashboard' })
+    expect(response.status).toBe(400)
+    expect(await getD1Link('dashboard')).toBeNull()
   })
 
   it('masks password in response and stores hashed password', async () => {
@@ -348,21 +405,21 @@ describe('/api/link/edit', { concurrent: false }, () => {
 
     const createdData = await createResponse.json() as { link: { password?: string } }
     expectMaskedPassword(createdData.link.password, initialPassword)
-    const storedAfterCreate = await getStoredLink(payload.slug)
+    const storedAfterCreate = await getD1Link(payload.slug)
     await expectStoredHashedPassword(payload.slug, initialPassword)
 
     const preservePasswordResponse = await putJson('/api/link/edit', { url: payload.url, slug: payload.slug })
     expect(preservePasswordResponse.status).toBe(201)
     const preserveData = await preservePasswordResponse.json() as { link: { password?: string } }
     expectMaskedPassword(preserveData.link.password, initialPassword)
-    const storedAfterPreserve = await getStoredLink(payload.slug)
+    const storedAfterPreserve = await getD1Link(payload.slug)
     expect(storedAfterPreserve?.password).toBe(storedAfterCreate?.password)
 
     const changePasswordResponse = await putJson('/api/link/edit', { url: payload.url, slug: payload.slug, password: newPassword })
     expect(changePasswordResponse.status).toBe(201)
     const changeData = await changePasswordResponse.json() as { link: { password?: string } }
     expectMaskedPassword(changeData.link.password, newPassword)
-    const storedAfterChange = await getStoredLink(payload.slug)
+    const storedAfterChange = await getD1Link(payload.slug)
     await expectStoredHashedPassword(payload.slug, newPassword)
     expect(storedAfterChange?.password).not.toBe(storedAfterCreate?.password)
 
@@ -370,35 +427,40 @@ describe('/api/link/edit', { concurrent: false }, () => {
     expect(clearPasswordResponse.status).toBe(201)
     const clearData = await clearPasswordResponse.json() as { link: { password?: string } }
     expect(clearData.link.password).toBeUndefined()
-    const storedAfterClear = await getStoredLink(payload.slug)
-    expect(storedAfterClear?.password).toBeUndefined()
+    const storedAfterClear = await getD1Link(payload.slug)
+    expect(storedAfterClear?.password).toBeNull()
   })
 
   it('removes optional fields when not provided in edit', async () => {
     const payload = createLinkPayload()
     expect((await postJson('/api/link/create', payload)).status).toBe(201)
 
+    // Proxy is a stored field; the instance flag only governs request-time
+    // delivery, so writing it does not require the flag.
     const setResponse = await putJson('/api/link/edit', {
       ...payload,
       comment: 'test comment',
       title: 'test title',
       cloaking: true,
       redirectWithQuery: true,
+      proxy: true,
     })
     expect(setResponse.status).toBe(201)
-    const setData = await setResponse.json() as { link: { comment?: string, title?: string, cloaking?: boolean, redirectWithQuery?: boolean } }
+    const setData = await setResponse.json() as { link: { comment?: string, title?: string, cloaking?: boolean, redirectWithQuery?: boolean, proxy?: boolean } }
     expect(setData.link.comment).toBe('test comment')
     expect(setData.link.title).toBe('test title')
     expect(setData.link.cloaking).toBe(true)
     expect(setData.link.redirectWithQuery).toBe(true)
+    expect(setData.link.proxy).toBe(true)
 
     const removeResponse = await putJson('/api/link/edit', payload)
     expect(removeResponse.status).toBe(201)
-    const removeData = await removeResponse.json() as { link: { comment?: string, title?: string, cloaking?: boolean, redirectWithQuery?: boolean } }
+    const removeData = await removeResponse.json() as { link: { comment?: string, title?: string, cloaking?: boolean, redirectWithQuery?: boolean, proxy?: boolean } }
     expect(removeData.link.comment).toBeUndefined()
     expect(removeData.link.title).toBeUndefined()
     expect(removeData.link.cloaking).toBeUndefined()
     expect(removeData.link.redirectWithQuery).toBeUndefined()
+    expect(removeData.link.proxy).toBeUndefined()
   })
 
   it('removes geo when not provided in edit', async () => {
@@ -483,5 +545,44 @@ describe('/api/link/delete', { concurrent: false }, () => {
   it('returns 400 when slug is empty', async () => {
     const response = await postJson('/api/link/delete', { slug: '' })
     expect(response.status).toBe(400)
+  })
+})
+
+describe('link proxy field persistence', { concurrent: false }, () => {
+  // The instance flag only governs request-time delivery; writes always store
+  // the `proxy` field.
+  it('lets edits keep or clear a stored proxy flag while the flag is off', async () => {
+    const slug = trackSlug(`legacy-proxy-${crypto.randomUUID()}`)
+    const id = `legacy-${crypto.randomUUID().slice(0, 8)}`
+    const now = Math.floor(Date.now() / 1000)
+    await db.insert(links).values({
+      slug,
+      id,
+      url: 'https://example.com/legacy',
+      createdAt: now,
+      updatedAt: now,
+      proxy: true,
+      normalizedUrl: 'https://example.com/legacy',
+    })
+
+    const keepResponse = await putJson('/api/link/edit', {
+      url: 'https://example.com/legacy',
+      slug,
+      proxy: true,
+      comment: 'kept proxy flag',
+    })
+    expect(keepResponse.status).toBe(201)
+    const keepData = await keepResponse.json() as { link: { proxy?: boolean, comment?: string } }
+    expect(keepData.link.proxy).toBe(true)
+    expect(keepData.link.comment).toBe('kept proxy flag')
+
+    const clearResponse = await putJson('/api/link/edit', {
+      url: 'https://example.com/legacy',
+      slug,
+      proxy: false,
+    })
+    expect(clearResponse.status).toBe(201)
+    const clearData = await clearResponse.json() as { link: { proxy?: boolean } }
+    expect(clearData.link.proxy).toBe(false)
   })
 })
